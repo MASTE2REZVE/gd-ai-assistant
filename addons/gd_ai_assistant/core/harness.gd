@@ -5,24 +5,8 @@ extends RefCounted
 ## GD AI Assistant — Agent Harness
 ##
 ## The loop. Turns a user message into: request -> response ->
-## (tool calls -> responses)* -> final text. Enforces:
-##   - agent mode gating (ASK / PLAN / AGENT / AUTO)
-##   - read-before-edit (anchor safety layer 2)
-##   - token budget trimming (anchor token rules 2, 7)
-##   - step cap and cancellation
-##   - HTTP retry with a short error-context message (rule 8)
-##
-## The harness OWNS the conversation history for the session. It does
-## NOT own the system prompt string — that is passed in at configure
-## time so this file has no dependency on how the prompt is built.
-##
-## Async contract: start_turn() is a coroutine. Callers must `await`
-## it OR connect to turn_finished. Both work.
-##
-## HTTP: uses an HTTPRequest added to _host. _host must be a Node in
-## the tree (the panel provides itself).
+## (tool calls -> responses)* -> final text.
 
-# --- Signals (UI observes these) --------------------------------------
 signal turn_started
 signal turn_finished(ok: bool, message: String)
 signal assistant_message(text: String)
@@ -30,16 +14,15 @@ signal tool_call_started(tool_name: String, args: Dictionary)
 signal tool_call_finished(tool_name: String, ok: bool, message: String)
 signal approval_required(tool_name: String, args: Dictionary)
 signal error_occurred(message: String)
-
-# Internal signal the panel emits back through resolve_approval().
 signal approval_resolved(approved: bool)
 
 
 const RETRY_DELAY_SEC: float = 1.2
 const DEFAULT_MAX_STEPS: int = 40
 const MOBILE_MAX_STEPS: int = 20
+const DEBUG_LOGGING: bool = false
 
-# --- Configuration ----------------------------------------------------
+
 var _settings: GDASettings = null
 var _registry: GDAToolRegistry = null
 var _host: Node = null
@@ -47,18 +30,15 @@ var _editor_interface: EditorInterface = null
 var _provider: GDAProviderBase = null
 var _system_prompt: String = ""
 
-# --- Runtime state ----------------------------------------------------
 var _running: bool = false
 var _cancelled: bool = false
 var _step_count: int = 0
-var _history: Array = []          # conversation, EXCLUDING the system message
-var _inspected: Dictionary = {}   # normalized res:// path -> true
+var _history: Array = []
+var _inspected: Dictionary = {}
 var _active_http: HTTPRequest = null
 var _approval_responded: bool = false
 var _approval_result: bool = false
 
-
-# --- Configuration API ------------------------------------------------
 
 func configure(
 	settings: GDASettings,
@@ -97,23 +77,17 @@ func clear_history() -> void:
 	_inspected.clear()
 
 
-# --- Approval callback (called by the panel) --------------------------
-
 func resolve_approval(approved: bool) -> void:
 	_approval_result = approved
 	_approval_responded = true
 	approval_resolved.emit(approved)
 
 
-# --- Cancellation -----------------------------------------------------
-
 func cancel() -> void:
 	_cancelled = true
 	if _active_http != null and is_instance_valid(_active_http):
 		_active_http.cancel_request()
 
-
-# --- Main entry -------------------------------------------------------
 
 func start_turn(user_text: String) -> void:
 	if _running:
@@ -152,7 +126,6 @@ func start_turn(user_text: String) -> void:
 func _run_loop() -> Dictionary:
 	var retries_used: int = 0
 	var max_retries: int = _settings.get_max_retries()
-	var agent_mode: String = _settings.get_agent_mode()
 	var limits: Dictionary = GDAPlatform.effective_limits(
 		GDAPlatform.resolve_mode(_settings.get_mode_override()),
 		_settings.get_desktop_features_enabled()
@@ -177,7 +150,6 @@ func _run_loop() -> Dictionary:
 		var estimate: int = GDATokenCounter.estimate_request(
 			"", trimmed, tools_canonical
 		)
-		# If the request cannot even fit within the budget, refuse.
 		if estimate > token_budget:
 			return _fail(
 				"Request too large for token budget (%d > %d)."
@@ -216,8 +188,6 @@ func _run_loop() -> Dictionary:
 				assistant_message.emit(content)
 			return { "ok": true, "message": content }
 
-		# Assistant turn with tool calls. Keep the calls in history so
-		# the provider can pair them with the tool results we append next.
 		_history.append({
 			"role": "assistant",
 			"content": content,
@@ -239,7 +209,6 @@ func _run_loop() -> Dictionary:
 					"data": result.get("data", {}),
 				}),
 			})
-		# Loop back for the model's next reply.
 
 	return _fail("Cancelled.")
 
@@ -269,8 +238,57 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 	var body: Dictionary = provider.build_request(
 		model, messages, tools_canonical, temperature
 	)
-	var body_json: String = JSON.stringify(body)
 
+	if DEBUG_LOGGING:
+		print("[GDA] POST ", url)
+		print("[GDA]   model=", model, " tools=", tools_canonical.size())
+
+	var result: Dictionary = await _do_http_post(url, headers, JSON.stringify(body))
+	if not bool(result.get("ok", false)):
+		return result
+
+	var status: int = int(result.get("status", 0))
+	var body_bytes: PackedByteArray = result.get("body", PackedByteArray())
+
+	if status < 200 or status >= 300:
+		var err_text: String = provider.parse_error_response(status, body_bytes)
+		if DEBUG_LOGGING:
+			print("[GDA]   HTTP ", status, ": ", body_bytes.get_string_from_utf8().substr(0, 300))
+
+		# Fallback: some providers (notably ModelScope) reject requests
+		# that include tools for models without function-calling support.
+		# Retry once without tools so the user still gets a reply.
+		if (
+			status == 400
+			and not tools_canonical.is_empty()
+			and "tool" in err_text.to_lower()
+		):
+			if DEBUG_LOGGING:
+				print("[GDA]   Retrying without tools.")
+			var no_tools_body: Dictionary = provider.build_request(
+				model, messages, [], temperature
+			)
+			var retry: Dictionary = await _do_http_post(
+				url, headers, JSON.stringify(no_tools_body)
+			)
+			if not bool(retry.get("ok", false)):
+				return retry
+			var retry_status: int = int(retry.get("status", 0))
+			var retry_body: PackedByteArray = retry.get("body", PackedByteArray())
+			if retry_status < 200 or retry_status >= 300:
+				return _fail(provider.parse_error_response(retry_status, retry_body))
+			return provider.parse_chat_response(retry_body)
+
+		return _fail(err_text)
+
+	return provider.parse_chat_response(body_bytes)
+
+
+func _do_http_post(
+	url: String,
+	headers: PackedStringArray,
+	body_json: String
+) -> Dictionary:
 	var http: HTTPRequest = HTTPRequest.new()
 	var limits: Dictionary = GDAPlatform.effective_limits(
 		GDAPlatform.resolve_mode(_settings.get_mode_override()),
@@ -280,22 +298,22 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 	_host.add_child(http)
 	_active_http = http
 
-	var err: Error = http.request(
-		url, headers, HTTPClient.METHOD_POST, body_json
-	)
+	var err: Error = http.request(url, headers, HTTPClient.METHOD_POST, body_json)
 	if err != OK:
 		http.queue_free()
 		_active_http = null
-		return _fail("HTTP request could not start (error %d)." % err)
+		return {
+			"ok": false,
+			"message": "HTTP request could not start (error %d)." % err,
+		}
 
 	var response: Array = await http.request_completed
-
 	_active_http = null
 	if is_instance_valid(http):
 		http.queue_free()
 
 	if response.size() < 4:
-		return _fail("Malformed HTTP response.")
+		return { "ok": false, "message": "Malformed HTTP response." }
 
 	var result_code: int = int(response[0])
 	var status: int = int(response[1])
@@ -303,13 +321,16 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 
 	if result_code != HTTPRequest.RESULT_SUCCESS:
 		if result_code == HTTPRequest.RESULT_REQUEST_FAILED:
-			return _fail("Network error: could not reach the provider.")
-		return _fail("HTTP request failed (result %d)." % result_code)
+			return {
+				"ok": false,
+				"message": "Network error: could not reach the provider.",
+			}
+		return {
+			"ok": false,
+			"message": "HTTP request failed (result %d)." % result_code,
+		}
 
-	if status < 200 or status >= 300:
-		return _fail(provider.parse_error_response(status, body_bytes))
-
-	return provider.parse_chat_response(body_bytes)
+	return { "ok": true, "status": status, "body": body_bytes }
 
 
 # --- Tool execution ---------------------------------------------------
@@ -336,7 +357,6 @@ func _execute_tool_call(tc: Dictionary) -> Dictionary:
 	tool_call_started.emit(tool_name, args_dict)
 	var result: Dictionary = await tool.execute(args_dict, _build_context())
 
-	# Track read_file for read-before-edit (only successful reads count).
 	if tool_name == "read_file" and bool(result.get("ok", false)):
 		var path: String = str(args_dict.get("path", ""))
 		if not path.is_empty():
@@ -390,8 +410,6 @@ func _build_full_history() -> Array:
 
 
 func _extract_target_path(args: Dictionary) -> String:
-	# Both write_file and patch_file use "path". Scene tools (Phase 2)
-	# will use "scene_path". Check both.
 	for key: String in ["path", "scene_path", "file_path"]:
 		var v: Variant = args.get(key, null)
 		if v != null:

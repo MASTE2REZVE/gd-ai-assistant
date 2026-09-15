@@ -1,22 +1,15 @@
 @tool
 extends Control
 
-const PROVIDER_ORDER: Array[String] = [
-	"openrouter", "modelscope", "openai", "gemini", "groq",
-	"deepseek", "mistral", "xai", "ollama", "lmstudio", "custom",
-]
+## GD AI Assistant — Bottom Panel UI
+##
+## Wires the harness, providers, tools, and settings together.
+## Model filter/sort logic lives in GDAModelView (ui/model_view.gd).
+
 const MODE_ORDER: Array[String] = ["ask", "plan", "agent", "auto"]
 const FILTER_ORDER: Array[String] = ["all", "free", "paid"]
 const SORT_ORDER: Array[String] = [
 	"alphabetical", "cheap", "expensive", "coding", "smart"
-]
-const CODING_KEYWORDS: Array[String] = [
-	"coder", "code", "codestral", "deepseek", "devstral",
-	"sonnet", "claude", "qwen", "gpt-4o", "o1", "o3", "opus"
-]
-const SMART_KEYWORDS: Array[String] = [
-	"opus", "405b", "70b", "r1", "thinking", "reasoning",
-	"o1", "o3", "pro", "sonnet-4", "sonnet-3.5", "sonnet-3.7"
 ]
 
 
@@ -207,18 +200,12 @@ func _mode_string_from_settings() -> String:
 
 func _populate_provider_dropdown() -> void:
 	_provider_dd.clear()
+	var ids: Array = GDAProviderRegistry.get_ui_ids()
 	var i: int = 0
-	for id: String in PROVIDER_ORDER:
-		if not GDAProviderRegistry.has_provider(id):
-			continue
-		var available: bool = GDAProviderRegistry.is_available(id)
-		var display: String = GDAProviderRegistry.get_display_name(id)
-		if not available:
-			display += " (unavailable)"
-		_provider_dd.add_item(display, i)
+	for id_v: Variant in ids:
+		var id: String = str(id_v)
+		_provider_dd.add_item(GDAProviderRegistry.get_display_name(id), i)
 		_provider_dd.set_item_metadata(i, id)
-		if not available:
-			_provider_dd.set_item_disabled(i, true)
 		i += 1
 
 
@@ -256,30 +243,25 @@ func _populate_sort_dropdown() -> void:
 
 
 func _select_provider_by_id(id: String) -> void:
-	for i: int in range(_provider_dd.item_count):
-		if str(_provider_dd.get_item_metadata(i)) == id:
-			_provider_dd.select(i)
-			return
+	_select_by_metadata(_provider_dd, id)
 
 
 func _select_mode_by_id(mode: String) -> void:
-	for i: int in range(_mode_dd.item_count):
-		if str(_mode_dd.get_item_metadata(i)) == mode:
-			_mode_dd.select(i)
-			return
+	_select_by_metadata(_mode_dd, mode)
 
 
 func _select_filter_by_id(id: String) -> void:
-	for i: int in range(_filter_dd.item_count):
-		if str(_filter_dd.get_item_metadata(i)) == id:
-			_filter_dd.select(i)
-			return
+	_select_by_metadata(_filter_dd, id)
 
 
 func _select_sort_by_id(id: String) -> void:
-	for i: int in range(_sort_dd.item_count):
-		if str(_sort_dd.get_item_metadata(i)) == id:
-			_sort_dd.select(i)
+	_select_by_metadata(_sort_dd, id)
+
+
+func _select_by_metadata(dd: OptionButton, value: String) -> void:
+	for i: int in range(dd.item_count):
+		if str(dd.get_item_metadata(i)) == value:
+			dd.select(i)
 			return
 
 
@@ -414,106 +396,18 @@ func _on_refresh_models_pressed() -> void:
 
 
 func _apply_model_view() -> void:
-	var filter_id: String = _selected_filter_id()
-	var sort_id: String = _selected_sort_id()
-	var filtered: Array = _filter_models(_all_models, filter_id)
-	_sort_models(filtered, sort_id)
+	var filtered: Array = GDAModelView.filter(_all_models, _selected_filter_id())
+	GDAModelView.sort(filtered, _selected_sort_id())
+	var entries: Array = GDAModelView.build_entries(filtered)
 	_model_list_dd.clear()
 	var i: int = 0
-	for m: Variant in filtered:
-		if not (m is Dictionary):
+	for e_v: Variant in entries:
+		if not (e_v is Dictionary):
 			continue
-		var md: Dictionary = m
-		var mid: String = str(md.get("id", ""))
-		var mname: String = str(md.get("name", mid))
-		if mid.is_empty():
-			continue
-		var label: String = mname
-		if bool(md.get("is_free", false)):
-			label = "[FREE] " + label
-		else:
-			var cost: float = float(md.get("effective_cost", -1.0))
-			if cost > 0:
-				label = "[$%.2f/1M] %s" % [cost, label]
-		_model_list_dd.add_item(label, i)
-		_model_list_dd.set_item_metadata(i, mid)
+		var e: Dictionary = e_v
+		_model_list_dd.add_item(str(e["label"]), i)
+		_model_list_dd.set_item_metadata(i, str(e["id"]))
 		i += 1
-
-
-func _filter_models(models: Array, filter_id: String) -> Array:
-	if filter_id == "all":
-		return models.duplicate()
-	var want_free: bool = filter_id == "free"
-	var out: Array = []
-	for m: Variant in models:
-		if not (m is Dictionary):
-			continue
-		var is_free: bool = bool((m as Dictionary).get("is_free", false))
-		if is_free == want_free:
-			out.append(m)
-	return out
-
-
-func _sort_models(models: Array, sort_id: String) -> void:
-	match sort_id:
-		"cheap":
-			models.sort_custom(_cmp_cheap)
-		"expensive":
-			models.sort_custom(_cmp_expensive)
-		"coding":
-			models.sort_custom(_cmp_coding)
-		"smart":
-			models.sort_custom(_cmp_smart)
-		_:
-			models.sort_custom(_cmp_alpha)
-
-
-func _cmp_alpha(a: Dictionary, b: Dictionary) -> bool:
-	return str(a.get("name", a.get("id", ""))).to_lower() < str(b.get("name", b.get("id", ""))).to_lower()
-
-
-func _cmp_cheap(a: Dictionary, b: Dictionary) -> bool:
-	var ac: float = float(a.get("effective_cost", -1.0))
-	var bc: float = float(b.get("effective_cost", -1.0))
-	if ac < 0.0 and bc < 0.0:
-		return _cmp_alpha(a, b)
-	if ac < 0.0:
-		return false
-	if bc < 0.0:
-		return true
-	if not is_equal_approx(ac, bc):
-		return ac < bc
-	return _cmp_alpha(a, b)
-
-
-func _cmp_expensive(a: Dictionary, b: Dictionary) -> bool:
-	return not _cmp_cheap(a, b)
-
-
-func _cmp_coding(a: Dictionary, b: Dictionary) -> bool:
-	return _keyword_score(a) > _keyword_score(b)
-
-
-func _cmp_smart(a: Dictionary, b: Dictionary) -> bool:
-	return _smart_score(a) > _smart_score(b)
-
-
-func _keyword_score(m: Dictionary) -> int:
-	var hay: String = (str(m.get("name", "")) + " " + str(m.get("id", ""))).to_lower()
-	var score: int = 0
-	for kw: String in CODING_KEYWORDS:
-		if kw in hay:
-			score += 1
-	return score
-
-
-func _smart_score(m: Dictionary) -> int:
-	var hay: String = (str(m.get("name", "")) + " " + str(m.get("id", ""))).to_lower()
-	var score: int = 0
-	for kw: String in SMART_KEYWORDS:
-		if kw in hay:
-			score += 1
-	return score
 
 
 func _on_message_submitted(_text: String) -> void:

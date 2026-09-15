@@ -19,7 +19,7 @@ theme_override_constants/v_separation = 4
 custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
 clip_text = true
-selected = 1
+selected = 5
 item_count = 11
 popup/item_0/text = "OpenRouter"
 popup/item_0/id = 0
@@ -48,7 +48,7 @@ popup/item_10/id = 10
 custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "MiniMax/MiniMax-M3"
+text = "deepseek-chat"
 placeholder_text = "model id"
 
 [node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=2124276753]
@@ -65,7 +65,7 @@ text = "⟳ Models"
 custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 clip_text = true
-selected = 0
+selected = 2
 item_count = 4
 popup/item_0/text = "ASK (no tools)"
 popup/item_0/id = 0
@@ -126,7 +126,6 @@ popup/item_4/text = "Smartest (heuristic)"
 popup/item_4/id = 4
 
 [node name="SettingsBar" type="HFlowContainer" parent="." unique_id=1063600075]
-visible = false
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
@@ -139,7 +138,6 @@ text = "API Key:"
 custom_minimum_size = Vector2(180, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "491541f1-ab62-4e1a-aaac-53e6b5b5eb7d"
 secret = true
 
 [node name="SaveKeyBtn" type="Button" parent="SettingsBar" unique_id=373358297]
