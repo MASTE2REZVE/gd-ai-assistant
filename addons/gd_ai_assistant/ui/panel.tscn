@@ -1,0 +1,232 @@
+[gd_scene format=3 uid="uid://bonopop4o8mks"]
+
+[ext_resource type="Script" uid="uid://dew5uudaebhx7" path="res://addons/gd_ai_assistant/ui/panel.gd" id="1"]
+
+[node name="Panel" type="VBoxContainer" unique_id=1111983458]
+custom_minimum_size = Vector2(0, 240)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 6
+script = ExtResource("1")
+
+[node name="TopBar" type="HFlowContainer" parent="." unique_id=810065420]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="ProviderDropdown" type="OptionButton" parent="TopBar" unique_id=1392849682]
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+clip_text = true
+selected = 1
+item_count = 11
+popup/item_0/text = "OpenRouter"
+popup/item_0/id = 0
+popup/item_1/text = "ModelScope"
+popup/item_1/id = 1
+popup/item_2/text = "OpenAI"
+popup/item_2/id = 2
+popup/item_3/text = "Google Gemini"
+popup/item_3/id = 3
+popup/item_4/text = "Groq"
+popup/item_4/id = 4
+popup/item_5/text = "DeepSeek"
+popup/item_5/id = 5
+popup/item_6/text = "Mistral"
+popup/item_6/id = 6
+popup/item_7/text = "xAI Grok"
+popup/item_7/id = 7
+popup/item_8/text = "Ollama (local)"
+popup/item_8/id = 8
+popup/item_9/text = "LM Studio (local)"
+popup/item_9/id = 9
+popup/item_10/text = "Custom"
+popup/item_10/id = 10
+
+[node name="ModelInput" type="LineEdit" parent="TopBar" unique_id=148186567]
+custom_minimum_size = Vector2(140, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "MiniMax/MiniMax-M3"
+placeholder_text = "model id"
+
+[node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=2124276753]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+clip_text = true
+
+[node name="RefreshModelsBtn" type="Button" parent="TopBar" unique_id=1442398211]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "⟳ Models"
+
+[node name="ModeDropdown" type="OptionButton" parent="TopBar" unique_id=1321586527]
+custom_minimum_size = Vector2(110, 48)
+layout_mode = 2
+clip_text = true
+selected = 0
+item_count = 4
+popup/item_0/text = "ASK (no tools)"
+popup/item_0/id = 0
+popup/item_1/text = "PLAN (read only)"
+popup/item_1/id = 1
+popup/item_2/text = "AGENT (ask first)"
+popup/item_2/id = 2
+popup/item_3/text = "AUTO (auto edit)"
+popup/item_3/id = 3
+
+[node name="SettingsBtn" type="Button" parent="TopBar" unique_id=27637171]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "Settings"
+
+[node name="ModelFilterBar" type="HFlowContainer" parent="." unique_id=600162133]
+visible = false
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="FilterLabel" type="Label" parent="ModelFilterBar" unique_id=14451459]
+layout_mode = 2
+text = "Filter:"
+
+[node name="FilterDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1183446254]
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+clip_text = true
+selected = 0
+item_count = 3
+popup/item_0/text = "All models"
+popup/item_0/id = 0
+popup/item_1/text = "Free only"
+popup/item_1/id = 1
+popup/item_2/text = "Paid only"
+popup/item_2/id = 2
+
+[node name="SortLabel" type="Label" parent="ModelFilterBar" unique_id=1602591572]
+layout_mode = 2
+text = "Sort:"
+
+[node name="SortDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1697350287]
+custom_minimum_size = Vector2(170, 48)
+layout_mode = 2
+clip_text = true
+selected = 0
+item_count = 5
+popup/item_0/text = "A → Z"
+popup/item_0/id = 0
+popup/item_1/text = "Cheapest first"
+popup/item_1/id = 1
+popup/item_2/text = "Most expensive"
+popup/item_2/id = 2
+popup/item_3/text = "Best for coding"
+popup/item_3/id = 3
+popup/item_4/text = "Smartest (heuristic)"
+popup/item_4/id = 4
+
+[node name="SettingsBar" type="HFlowContainer" parent="." unique_id=1063600075]
+visible = false
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="APIKeyLabel" type="Label" parent="SettingsBar" unique_id=314299557]
+layout_mode = 2
+text = "API Key:"
+
+[node name="APIKeyInput" type="LineEdit" parent="SettingsBar" unique_id=2033156586]
+custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "491541f1-ab62-4e1a-aaac-53e6b5b5eb7d"
+secret = true
+
+[node name="SaveKeyBtn" type="Button" parent="SettingsBar" unique_id=373358297]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "Save"
+
+[node name="DesktopFeaturesCheck" type="CheckBox" parent="SettingsBar" unique_id=1037118616]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+text = "Desktop features"
+
+[node name="ChatHistory" type="RichTextLabel" parent="." unique_id=495164984]
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+focus_mode = 2
+scroll_following = true
+selection_enabled = true
+
+[node name="InputBar" type="HFlowContainer" parent="." unique_id=899935090]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="MessageInput" type="LineEdit" parent="InputBar" unique_id=426857856]
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ask GD AI Assistant..."
+
+[node name="SendBtn" type="Button" parent="InputBar" unique_id=951160298]
+custom_minimum_size = Vector2(80, 48)
+layout_mode = 2
+text = "Send"
+
+[node name="StopBtn" type="Button" parent="InputBar" unique_id=629153320]
+custom_minimum_size = Vector2(80, 48)
+layout_mode = 2
+disabled = true
+text = "Stop"
+
+[node name="CopyLatestBtn" type="Button" parent="InputBar" unique_id=747918687]
+custom_minimum_size = Vector2(110, 48)
+layout_mode = 2
+text = "Copy Latest"
+
+[node name="CopyAllBtn" type="Button" parent="InputBar" unique_id=1362554694]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "Copy All"
+
+[node name="StatusBar" type="HFlowContainer" parent="." unique_id=1468140374]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="StatusLabel" type="Label" parent="StatusBar" unique_id=559293415]
+custom_minimum_size = Vector2(140, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Ready"
+clip_text = true
+
+[node name="TokenLabel" type="Label" parent="StatusBar" unique_id=1849976100]
+layout_mode = 2
+clip_text = true
+
+[node name="ApprovalBar" type="HFlowContainer" parent="." unique_id=436704538]
+visible = false
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="ApprovalLabel" type="Label" parent="ApprovalBar" unique_id=563469795]
+custom_minimum_size = Vector2(180, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Approve this change?"
+clip_text = true
+
+[node name="ApproveBtn" type="Button" parent="ApprovalBar" unique_id=946214641]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "Approve"
+
+[node name="RejectBtn" type="Button" parent="ApprovalBar" unique_id=620016929]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "Reject"
