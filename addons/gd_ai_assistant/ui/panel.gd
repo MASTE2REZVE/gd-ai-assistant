@@ -172,6 +172,7 @@ func _wire_harness_signals() -> void:
 	_harness.tool_call_finished.connect(_on_tool_call_finished)
 	_harness.approval_required.connect(_on_approval_required)
 	_harness.checkpoint_created.connect(_on_checkpoint_created)
+	_harness.status_changed.connect(_on_status_changed)
 
 
 func _build_services() -> void:
@@ -497,7 +498,6 @@ func _on_reject_pressed() -> void:
 
 
 func _on_turn_started() -> void:
-	_set_status("Working...")
 	_stop_btn.disabled = false
 
 
@@ -544,6 +544,10 @@ func _on_approval_required(tool_name: String, args: Dictionary) -> void:
 
 func _on_checkpoint_created(_id: String, _label: String) -> void:
 	_refresh_undo_button()
+
+
+func _on_status_changed(text: String) -> void:
+	_set_status(text)
 
 
 func _refresh_prompt() -> void:

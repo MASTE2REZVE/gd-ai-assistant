@@ -2,20 +2,17 @@
 class_name GDAHarness
 extends RefCounted
 
-## GD AI Assistant — Agent Harness
-##
-## The loop. Turns a user message into: request -> response ->
-## (tool calls -> responses)* -> final text.
-
 signal turn_started
 signal turn_finished(ok: bool, message: String)
 signal assistant_message(text: String)
+signal assistant_token(text: String)
 signal tool_call_started(tool_name: String, args: Dictionary)
 signal tool_call_finished(tool_name: String, ok: bool, message: String)
 signal approval_required(tool_name: String, args: Dictionary)
 signal error_occurred(message: String)
 signal approval_resolved(approved: bool)
 signal checkpoint_created(id: String, label: String)
+signal status_changed(text: String)
 
 
 const RETRY_DELAY_SEC: float = 1.2
@@ -37,6 +34,7 @@ var _step_count: int = 0
 var _history: Array = []
 var _inspected: Dictionary = {}
 var _active_http: HTTPRequest = null
+var _active_streamer: GDAHttpStreamer = null
 var _approval_responded: bool = false
 var _approval_result: bool = false
 var _current_checkpoint_id: String = ""
@@ -89,18 +87,14 @@ func cancel() -> void:
 	_cancelled = true
 	if _active_http != null and is_instance_valid(_active_http):
 		_active_http.cancel_request()
+	if _active_streamer != null:
+		_active_streamer.cancel()
 
 
-# --- Checkpoints ------------------------------------------------------
-
-## True if there is at least one checkpoint on disk that can be undone.
 func can_undo() -> bool:
 	return not GDACheckpoint.latest_id().is_empty()
 
 
-## Restore the most recent checkpoint. Also clears conversation
-## history — after a rollback the conversation refers to file states
-## that no longer exist. Returns {ok, message, data}.
 func undo_last() -> Dictionary:
 	if _running:
 		return { "ok": false, "message": "Cannot undo while a turn is running.", "data": {} }
@@ -128,8 +122,6 @@ func undo_last() -> Dictionary:
 	return r
 
 
-# --- Turn entry -------------------------------------------------------
-
 func start_turn(user_text: String) -> void:
 	if _running:
 		error_occurred.emit("A turn is already running.")
@@ -154,9 +146,6 @@ func start_turn(user_text: String) -> void:
 
 	_history.append({ "role": "user", "content": trimmed_input })
 
-	# Begin a checkpoint for this turn. Mutating tools will snapshot
-	# their targets into it. If begin() fails we proceed without a
-	# checkpoint — the per-write backup chain still protects writes.
 	var label: String = trimmed_input
 	if label.length() > 60:
 		label = label.substr(0, 60) + "…"
@@ -165,6 +154,7 @@ func start_turn(user_text: String) -> void:
 		GDACheckpoint.cleanup_old()
 		checkpoint_created.emit(_current_checkpoint_id, label)
 
+	status_changed.emit("Starting turn...")
 	turn_started.emit()
 
 	var result: Dictionary = await _run_loop()
@@ -172,10 +162,9 @@ func start_turn(user_text: String) -> void:
 	_running = false
 	var ok: bool = bool(result.get("ok", false))
 	var msg: String = str(result.get("message", ""))
+	status_changed.emit("Ready" if ok else "Stopped")
 	turn_finished.emit(ok, msg)
 
-
-# --- The loop ---------------------------------------------------------
 
 func _run_loop() -> Dictionary:
 	var retries_used: int = 0
@@ -193,6 +182,8 @@ func _run_loop() -> Dictionary:
 		_step_count += 1
 		if _step_count > max_steps:
 			return _fail("Step limit reached (%d)." % max_steps)
+
+		status_changed.emit("Thinking (step %d/%d)..." % [_step_count, max_steps])
 
 		var tools_canonical: Array = _registry.to_canonical_array()
 		var tools_cost: int = GDATokenCounter.estimate_tools(tools_canonical)
@@ -219,6 +210,7 @@ func _run_loop() -> Dictionary:
 			retries_used += 1
 			if retries_used > max_retries:
 				return _fail(str(response.get("message", "Unknown error.")))
+			status_changed.emit("Retrying (%d/%d)..." % [retries_used, max_retries])
 			_history.append({
 				"role": "user",
 				"content": (
@@ -253,6 +245,8 @@ func _run_loop() -> Dictionary:
 				return _fail("Cancelled.")
 			if not (tc is Dictionary):
 				continue
+			var tool_name_pre: String = str((tc as Dictionary).get("name", "tool"))
+			status_changed.emit("Running tool: %s..." % tool_name_pre)
 			var result: Dictionary = await _execute_tool_call(tc as Dictionary)
 			_history.append({
 				"role": "tool",
@@ -266,8 +260,6 @@ func _run_loop() -> Dictionary:
 
 	return _fail("Cancelled.")
 
-
-# --- Provider request -------------------------------------------------
 
 func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 	var provider: GDAProviderBase = _provider
@@ -297,6 +289,39 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		print("[GDA] POST ", url)
 		print("[GDA]   model=", model, " tools=", tools_canonical.size())
 
+	status_changed.emit("Waiting for %s..." % model)
+
+	if provider.supports_streaming():
+		var stream_body: Dictionary = body.duplicate(true)
+		stream_body["stream"] = true
+		var stream_result: Dictionary = await _send_streaming(
+			url, headers, JSON.stringify(stream_body), provider, tools_canonical
+		)
+		# Fallback: if streaming failed for any reason other than a
+		# tool-not-supported 400 (which we handle below), retry
+		# non-streaming once.
+		if bool(stream_result.get("ok", false)):
+			return stream_result
+		if int(stream_result.get("status", 0)) == 400:
+			var err_body: PackedByteArray = stream_result.get(
+				"error_body", PackedByteArray()
+			)
+			var err_text: String = provider.parse_error_response(400, err_body)
+			if "tool" in err_text.to_lower() and not tools_canonical.is_empty():
+				status_changed.emit("Retrying without tools...")
+				var no_tools: Dictionary = provider.build_request(
+					model, messages, [], temperature
+				)
+				no_tools["stream"] = true
+				return await _send_streaming(
+					url, headers, JSON.stringify(no_tools), provider, []
+				)
+			return _fail(err_text)
+		# Streaming failed. Fall through to non-streaming.
+		if DEBUG_LOGGING:
+			print("[GDA] Streaming failed: ", stream_result.get("message", ""))
+			print("[GDA] Falling back to non-streaming.")
+
 	var result: Dictionary = await _do_http_post(url, headers, JSON.stringify(body))
 	if not bool(result.get("ok", false)):
 		return result
@@ -314,8 +339,7 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 			and not tools_canonical.is_empty()
 			and "tool" in err_text.to_lower()
 		):
-			if DEBUG_LOGGING:
-				print("[GDA]   Retrying without tools.")
+			status_changed.emit("Retrying without tools...")
 			var no_tools_body: Dictionary = provider.build_request(
 				model, messages, [], temperature
 			)
@@ -333,6 +357,26 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		return _fail(err_text)
 
 	return provider.parse_chat_response(body_bytes)
+
+
+func _send_streaming(
+	url: String,
+	headers: PackedStringArray,
+	body_json: String,
+	_provider: GDAProviderBase,
+	_tools_canonical: Array
+) -> Dictionary:
+	var streamer: GDAHttpStreamer = GDAHttpStreamer.new()
+	_active_streamer = streamer
+
+	var on_token: Callable = func(token: String) -> void:
+		assistant_token.emit(token)
+
+	var result: Dictionary = await streamer.run(
+		url, headers, body_json, on_token, _host
+	)
+	_active_streamer = null
+	return result
 
 
 func _do_http_post(
@@ -377,8 +421,6 @@ func _do_http_post(
 
 	return { "ok": true, "status": status, "body": body_bytes }
 
-
-# --- Tool execution ---------------------------------------------------
 
 func _execute_tool_call(tc: Dictionary) -> Dictionary:
 	var tool_name: String = str(tc.get("name", ""))
@@ -434,6 +476,7 @@ func _gate_tool(tool: GDAToolBase, args: Dictionary) -> Dictionary:
 				)
 
 	if mode == "agent" and tool.is_mutating():
+		status_changed.emit("Waiting for your approval...")
 		_approval_responded = false
 		approval_required.emit(tool.get_name(), args)
 		if not _approval_responded:
@@ -443,8 +486,6 @@ func _gate_tool(tool: GDAToolBase, args: Dictionary) -> Dictionary:
 
 	return { "ok": true, "message": "", "data": {} }
 
-
-# --- Helpers ----------------------------------------------------------
 
 func _build_full_history() -> Array:
 	var out: Array = []

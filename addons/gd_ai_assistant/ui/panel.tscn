@@ -48,7 +48,7 @@ popup/item_10/id = 10
 custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "openrouter/free"
+text = "deepseek/deepseek-v4-flash-0731:free"
 placeholder_text = "model id"
 
 [node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=476376126]

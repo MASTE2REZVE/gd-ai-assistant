@@ -61,6 +61,10 @@ func supports_tools() -> bool:
 	return _supports_tools_flag
 
 
+func supports_streaming() -> bool:
+	return false
+
+
 func supports_model_listing() -> bool:
 	return _supports_models_flag
 
@@ -73,9 +77,14 @@ func build_headers(api_key: String) -> PackedStringArray:
 	var headers: PackedStringArray = PackedStringArray()
 	headers.append("Content-Type: application/json")
 	headers.append("Accept: application/json")
-	if _requires_key and not api_key.is_empty():
-		headers.append("Authorization: Bearer " + api_key)
-	elif _requires_key and api_key.is_empty():
+
+	var effective_key: String = api_key
+	if _id == "modelscope" and effective_key.begins_with("ms-"):
+		effective_key = effective_key.substr(3)
+
+	if _requires_key and not effective_key.is_empty():
+		headers.append("Authorization: Bearer " + effective_key)
+	elif _requires_key and effective_key.is_empty():
 		push_warning(
 			"GDAOpenAICompat[%s]: no API key saved for this provider. 401 likely."
 			% _id
