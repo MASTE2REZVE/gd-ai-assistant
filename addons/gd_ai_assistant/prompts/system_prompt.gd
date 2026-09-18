@@ -7,14 +7,10 @@ extends RefCounted
 ## Static class. Produces the string that goes at the top of every
 ## conversation. No state, no I/O.
 ##
-## Three variants:
-##   standard  — full rules, default
-##   eco       — shorter, minimal rules (mobile / low-token users)
-##   ponytail  — standard + "minimal code" ladder
-##
-## Every variant is kept under ~800 tokens. Longer prompts are not
-## better — they cost money on every request and dilute the rules the
-## model actually needs to follow.
+## Three base variants: standard, eco, ponytail.
+## Plus a FAST overlay that turns on when the user enables the
+## "⚡ Fast" toggle — tells the model to skip exploration and write
+## directly. Fast mode is OFF by default.
 
 const BASE_RULES: String = """You are GD AI Assistant, a careful Godot 4 coding agent inside the editor.
 
@@ -35,11 +31,6 @@ AFTER YOU EDIT:
 - Trust the verification result. If a change rolls back, read the file
   again and rethink — do not repeat the same idea.
 
-TOOLS:
-- get_project_info / list_files / search_files: explore the project.
-- read_file: read a specific file.
-- write_file / patch_file: modify files. These are gated by mode.
-
 GODOT 4:
 - Typed GDScript. Use @onready, @export, signal.connect(callable).
 - CharacterBody3D: velocity + move_and_slide(). Never multiply by delta.
@@ -49,6 +40,15 @@ RESPONSE STYLE:
 - Concise. No preamble. No "Sure, I'll help."
 - When you need a tool, call it — do not describe the call in prose.
 - When done, say what changed in one or two short sentences.
+"""
+
+const FAST_OVERLAY: String = """FAST MODE IS ON:
+- Skip exploration. Do NOT call get_project_info or list_files unless the task genuinely requires it.
+- If the user says "create X", write it directly.
+- If the user gives a file path, use it as-is without verifying.
+- One tool call per step. No redundant chained calls.
+- If you already know the answer, answer without tools.
+Trade-off: you may miss existing code that would have been useful. The user chose speed over thoroughness.
 """
 
 const ECO_APPENDIX: String = """
@@ -65,15 +65,22 @@ Never strip input validation, null checks, or error handling.
 """
 
 
-# --- Public API -------------------------------------------------------
-
 ## Build the system prompt for the given mode.
-## `extra_context` is optional — the panel may prepend project-specific
-## info (project name, main scene, open scene summary). It is appended
-## verbatim, no formatting.
-static func build(mode: String = "standard", extra_context: String = "") -> String:
+## mode: "standard" | "eco" | "ponytail"
+## fast: when true, prepends the FAST_OVERLAY before the base rules.
+## extra_context: appended verbatim at the end (project name, scene summary, etc).
+static func build(
+	mode: String = "standard",
+	extra_context: String = "",
+	fast: bool = false
+) -> String:
 	var mode_lower: String = mode.to_lower()
-	var prompt: String = BASE_RULES
+	var prompt: String = ""
+
+	if fast:
+		prompt += FAST_OVERLAY + "\n"
+
+	prompt += BASE_RULES
 
 	match mode_lower:
 		"eco":
@@ -89,6 +96,5 @@ static func build(mode: String = "standard", extra_context: String = "") -> Stri
 	return prompt
 
 
-## Estimate token cost of a prompt. Delegates to GDATokenCounter.
 static func estimate_tokens(prompt: String) -> int:
 	return GDATokenCounter.estimate_text(prompt)

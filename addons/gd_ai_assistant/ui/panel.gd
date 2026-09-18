@@ -1,11 +1,6 @@
 @tool
 extends Control
 
-## GD AI Assistant — Bottom Panel UI
-##
-## Wires the harness, providers, tools, and settings together.
-## Model filter/sort logic lives in GDAModelView (ui/model_view.gd).
-
 const MODE_ORDER: Array[String] = ["ask", "plan", "agent", "auto"]
 const FILTER_ORDER: Array[String] = ["all", "free", "paid"]
 const SORT_ORDER: Array[String] = [
@@ -23,6 +18,7 @@ var _provider_dd: OptionButton
 var _model_input: LineEdit
 var _model_list_dd: OptionButton
 var _refresh_models_btn: Button
+var _fast_check: CheckBox
 var _mode_dd: OptionButton
 var _settings_btn: Button
 var _filter_dd: OptionButton
@@ -40,6 +36,7 @@ var _copy_latest_btn: Button
 var _copy_all_btn: Button
 var _status_label: Label
 var _token_label: Label
+var _undo_btn: Button
 var _approval_bar: Container
 var _approval_label: Label
 var _approve_btn: Button
@@ -71,8 +68,10 @@ func _ready() -> void:
 	_select_filter_by_id("all")
 	_select_sort_by_id("alphabetical")
 	_desktop_features_check.button_pressed = _settings.get_desktop_features_enabled()
+	_fast_check.button_pressed = _settings.get_fast_mode()
 	_refresh_api_key_field()
 	_refresh_model_field()
+	_refresh_undo_button()
 	_set_status("Ready")
 	_append_system("GD AI Assistant ready. Type a message and press Send.")
 
@@ -82,6 +81,7 @@ func _cache_nodes() -> bool:
 	_model_input = get_node_or_null("TopBar/ModelInput") as LineEdit
 	_model_list_dd = get_node_or_null("TopBar/ModelListDropdown") as OptionButton
 	_refresh_models_btn = get_node_or_null("TopBar/RefreshModelsBtn") as Button
+	_fast_check = get_node_or_null("TopBar/FastCheck") as CheckBox
 	_mode_dd = get_node_or_null("TopBar/ModeDropdown") as OptionButton
 	_settings_btn = get_node_or_null("TopBar/SettingsBtn") as Button
 	_model_filter_bar = get_node_or_null("ModelFilterBar") as Control
@@ -99,6 +99,7 @@ func _cache_nodes() -> bool:
 	_copy_all_btn = get_node_or_null("InputBar/CopyAllBtn") as Button
 	_status_label = get_node_or_null("StatusBar/StatusLabel") as Label
 	_token_label = get_node_or_null("StatusBar/TokenLabel") as Label
+	_undo_btn = get_node_or_null("StatusBar/UndoBtn") as Button
 	_approval_bar = get_node_or_null("ApprovalBar") as Container
 	_approval_label = get_node_or_null("ApprovalBar/ApprovalLabel") as Label
 	_approve_btn = get_node_or_null("ApprovalBar/ApproveBtn") as Button
@@ -109,6 +110,7 @@ func _cache_nodes() -> bool:
 	if _model_input == null: missing.append("ModelInput")
 	if _model_list_dd == null: missing.append("ModelListDropdown")
 	if _refresh_models_btn == null: missing.append("RefreshModelsBtn")
+	if _fast_check == null: missing.append("FastCheck")
 	if _mode_dd == null: missing.append("ModeDropdown")
 	if _settings_btn == null: missing.append("SettingsBtn")
 	if _model_filter_bar == null: missing.append("ModelFilterBar")
@@ -126,6 +128,7 @@ func _cache_nodes() -> bool:
 	if _copy_all_btn == null: missing.append("CopyAllBtn")
 	if _status_label == null: missing.append("StatusLabel")
 	if _token_label == null: missing.append("TokenLabel")
+	if _undo_btn == null: missing.append("UndoBtn")
 	if _approval_bar == null: missing.append("ApprovalBar")
 	if _approval_label == null: missing.append("ApprovalLabel")
 	if _approve_btn == null: missing.append("ApproveBtn")
@@ -145,6 +148,7 @@ func _wire_ui() -> void:
 	_save_key_btn.pressed.connect(_on_save_key_pressed)
 	_copy_latest_btn.pressed.connect(_on_copy_latest_pressed)
 	_copy_all_btn.pressed.connect(_on_copy_all_pressed)
+	_undo_btn.pressed.connect(_on_undo_pressed)
 	_provider_dd.item_selected.connect(_on_provider_selected)
 	_mode_dd.item_selected.connect(_on_mode_selected)
 	_model_list_dd.item_selected.connect(_on_model_from_list_selected)
@@ -154,6 +158,7 @@ func _wire_ui() -> void:
 	_api_key_input.text_submitted.connect(_on_api_key_submitted)
 	_model_input.text_submitted.connect(_on_model_submitted)
 	_desktop_features_check.toggled.connect(_on_desktop_features_toggled)
+	_fast_check.toggled.connect(_on_fast_toggled)
 	_approve_btn.pressed.connect(_on_approve_pressed)
 	_reject_btn.pressed.connect(_on_reject_pressed)
 
@@ -166,6 +171,7 @@ func _wire_harness_signals() -> void:
 	_harness.tool_call_started.connect(_on_tool_call_started)
 	_harness.tool_call_finished.connect(_on_tool_call_finished)
 	_harness.approval_required.connect(_on_approval_required)
+	_harness.checkpoint_created.connect(_on_checkpoint_created)
 
 
 func _build_services() -> void:
@@ -175,7 +181,9 @@ func _build_services() -> void:
 	_registry.build()
 	_harness = GDAHarness.new()
 	_rebuild_provider()
-	var prompt: String = GDASystemPrompt.build(_mode_string_from_settings())
+	var prompt: String = GDASystemPrompt.build(
+		_mode_string_from_settings(), "", _settings.get_fast_mode()
+	)
 	_harness.configure(_settings, _registry, self, _editor_interface, _provider, prompt)
 	if _settings.is_dirty():
 		_settings.save_settings()
@@ -211,10 +219,7 @@ func _populate_provider_dropdown() -> void:
 
 func _populate_mode_dropdown() -> void:
 	_mode_dd.clear()
-	var labels: Array[String] = [
-		"ASK (no tools)", "PLAN (read only)",
-		"AGENT (ask first)", "AUTO (auto edit)"
-	]
+	var labels: Array[String] = ["ASK (no tools)", "PLAN (read only)", "AGENT (ask first)", "AUTO (auto edit)"]
 	for i: int in range(MODE_ORDER.size()):
 		_mode_dd.add_item(labels[i], i)
 		_mode_dd.set_item_metadata(i, MODE_ORDER[i])
@@ -230,13 +235,7 @@ func _populate_filter_dropdown() -> void:
 
 func _populate_sort_dropdown() -> void:
 	_sort_dd.clear()
-	var labels: Array[String] = [
-		"A → Z",
-		"Cheapest first",
-		"Most expensive",
-		"Best for coding",
-		"Smartest (heuristic)",
-	]
+	var labels: Array[String] = ["A → Z", "Cheapest first", "Most expensive", "Best for coding", "Smartest (heuristic)"]
 	for i: int in range(SORT_ORDER.size()):
 		_sort_dd.add_item(labels[i], i)
 		_sort_dd.set_item_metadata(i, SORT_ORDER[i])
@@ -293,8 +292,6 @@ func _selected_sort_id() -> String:
 	return str(_sort_dd.get_item_metadata(idx))
 
 
-# --- UI handlers ------------------------------------------------------
-
 func _on_provider_selected(_idx: int) -> void:
 	var id: String = _selected_provider_id()
 	_settings.set_active_provider(id)
@@ -319,6 +316,16 @@ func _on_mode_selected(_idx: int) -> void:
 
 func _on_settings_toggled() -> void:
 	_settings_bar.visible = not _settings_bar.visible
+
+
+func _on_fast_toggled(pressed: bool) -> void:
+	_settings.set_fast_mode(pressed)
+	_settings.save_settings()
+	_refresh_prompt()
+	if pressed:
+		_append_system("⚡ Fast mode ON — the AI will skip exploration. Fewer tool calls, faster replies, less careful.")
+	else:
+		_append_system("Fast mode off — full exploration and inspection.")
 
 
 func _on_desktop_features_toggled(pressed: bool) -> void:
@@ -431,6 +438,9 @@ func _on_send_pressed() -> void:
 	if text == "@errors":
 		_append_system(_fetch_recent_errors())
 		return
+	if text == "@undo":
+		_on_undo_pressed()
+		return
 
 	_append_user(text)
 	_send_btn.disabled = true
@@ -443,6 +453,20 @@ func _on_stop_pressed() -> void:
 		return
 	_harness.cancel()
 	_set_status("Cancelled")
+
+
+func _on_undo_pressed() -> void:
+	if _harness.is_running():
+		_set_status("Cannot undo while running.")
+		return
+	var r: Dictionary = _harness.undo_last()
+	if bool(r.get("ok", false)):
+		_append_system("⟲ " + str(r.get("message", "Undone.")))
+		_last_assistant_reply = ""
+		_refresh_undo_button()
+	else:
+		_append_system("Undo failed: " + str(r.get("message", "")))
+		_set_status("Undo failed.")
 
 
 func _on_copy_latest_pressed() -> void:
@@ -472,8 +496,6 @@ func _on_reject_pressed() -> void:
 	_harness.resolve_approval(false)
 
 
-# --- Harness signal handlers -----------------------------------------
-
 func _on_turn_started() -> void:
 	_set_status("Working...")
 	_stop_btn.disabled = false
@@ -488,6 +510,7 @@ func _on_turn_finished(ok: bool, message: String) -> void:
 	else:
 		_set_status("Turn ended: " + message)
 	_refresh_token_estimate()
+	_refresh_undo_button()
 
 
 func _on_assistant_message(text: String) -> void:
@@ -519,10 +542,14 @@ func _on_approval_required(tool_name: String, args: Dictionary) -> void:
 	_approval_bar.visible = true
 
 
-# --- Helpers ----------------------------------------------------------
+func _on_checkpoint_created(_id: String, _label: String) -> void:
+	_refresh_undo_button()
+
 
 func _refresh_prompt() -> void:
-	var prompt: String = GDASystemPrompt.build(_mode_string_from_settings())
+	var prompt: String = GDASystemPrompt.build(
+		_mode_string_from_settings(), "", _settings.get_fast_mode()
+	)
 	_harness.set_system_prompt(prompt)
 
 
@@ -530,9 +557,7 @@ func _refresh_api_key_field() -> void:
 	var id: String = _settings.get_active_provider()
 	var key: String = _settings.get_api_key(id)
 	_api_key_input.text = key
-	var show_settings: bool = (
-		GDAProviderRegistry.requires_api_key(id) and key.is_empty()
-	)
+	var show_settings: bool = (GDAProviderRegistry.requires_api_key(id) and key.is_empty())
 	_settings_bar.visible = show_settings
 
 
@@ -544,11 +569,19 @@ func _refresh_model_field() -> void:
 	_model_input.text = model
 
 
+func _refresh_undo_button() -> void:
+	if _undo_btn == null:
+		return
+	_undo_btn.disabled = not _harness.can_undo()
+
+
 func _refresh_token_estimate() -> void:
 	var tools_canonical: Array = _registry.to_canonical_array()
 	var tools_cost: int = GDATokenCounter.estimate_tools(tools_canonical)
 	var prompt_cost: int = GDATokenCounter.estimate_text(
-		GDASystemPrompt.build(_mode_string_from_settings())
+		GDASystemPrompt.build(
+			_mode_string_from_settings(), "", _settings.get_fast_mode()
+		)
 	)
 	var total: int = tools_cost + prompt_cost
 	_token_label.text = GDATokenCounter.format_estimate(total)

@@ -4,9 +4,9 @@ extends RefCounted
 
 ## GD AI Assistant — File Verification
 ##
-## Safety layer 3 of 7. Runs after every write, before the change is
+## Safety layer 4 of 7. Runs after every write, before the change is
 ## kept. Returns {ok, message, data}. On failure the caller is expected
-## to roll back using the backup created in safety layer 2.
+## to roll back using the backup created in safety layer 3.
 ##
 ## Dispatch by extension:
 ##   .gd            -> ResourceLoader.load + senior-style linter
@@ -14,19 +14,15 @@ extends RefCounted
 ##   .tres / .res   -> Resource load
 ##   everything else-> basic checks (exists, non-empty, size)
 ##
-## All checks are synchronous. Verification is expected to be fast —
-## resource loading for a single small file is milliseconds, not seconds.
-##
-## File size limits:
-##   MAX_FILE_BYTES  — hard cap for any verified file
-##   MAX_SCENE_BYTES — scenes are bigger than scripts; separate cap
-## Both are checked BEFORE any load, so a huge file never hits the
-## resource loader.
+## After a successful verification we ask Godot's EditorFileSystem to
+## rescan so new/changed files appear in the FileSystem dock and
+## class_name declarations register immediately — no project reload
+## required. The scan is deferred so it runs after the current
+## write/verify call unwinds, never mid-operation.
 
 const MAX_FILE_BYTES: int = 512 * 1024
 const MAX_SCENE_BYTES: int = 4 * 1024 * 1024
 
-# Godot 3 classes. Appearance in a Godot 4 project means a real mistake.
 const DEPRECATED_CLASSES: Array[String] = [
 	"KinematicBody",
 	"KinematicBody2D",
@@ -37,23 +33,45 @@ const DEPRECATED_CLASSES: Array[String] = [
 ]
 
 
-# --- Public: main entry -----------------------------------------------
-
-## Verify the file at `path`. Caller is expected to have already written
-## it and to have a backup ready if this returns ok=false.
 static func verify_file(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return _fail("File does not exist after write: " + path)
 
 	var lower: String = path.to_lower()
+	var result: Dictionary
 
 	if lower.ends_with(".gd"):
-		return _verify_gdscript(path)
-	if lower.ends_with(".tscn"):
-		return _verify_scene(path)
-	if lower.ends_with(".tres") or lower.ends_with(".res"):
-		return _verify_resource(path)
-	return _verify_basic(path)
+		result = _verify_gdscript(path)
+	elif lower.ends_with(".tscn"):
+		result = _verify_scene(path)
+	elif lower.ends_with(".tres") or lower.ends_with(".res"):
+		result = _verify_resource(path)
+	else:
+		result = _verify_basic(path)
+
+	if bool(result.get("ok", false)):
+		_refresh_editor_filesystem(path)
+
+	return result
+
+
+## Ask Godot's editor to rescan so the written file is visible
+## immediately. Safe to call from any editor context; no-op outside the
+## editor. Uses call_deferred so the scan happens after this call
+## returns — avoids re-entrant file operations during a write.
+static func _refresh_editor_filesystem(path: String) -> void:
+	if not Engine.is_editor_hint():
+		return
+	var fs: EditorFileSystem = EditorInterface.get_resource_filesystem()
+	if fs == null:
+		return
+	# update_file is the lightweight path for a known file; scan() is
+	# the full-tree rescan. We try update_file first, then scan, so
+	# both new files (not yet in the tree) and changed files (already
+	# known) end up correct.
+	if FileAccess.file_exists(path):
+		fs.call_deferred("update_file", path)
+	fs.call_deferred("scan")
 
 
 # --- Per-type verifiers -----------------------------------------------
@@ -127,13 +145,8 @@ static func _verify_basic(path: String) -> Dictionary:
 	return _ok("File verified (basic): " + path)
 
 
-# --- Public: source-level linter --------------------------------------
-# Exposed so future tools (e.g. a "dry run" checker) can call it
-# without writing a file first.
+# --- Linter -----------------------------------------------------------
 
-## Conservative checks on GDScript source text. Returns {ok, message, data}.
-## Only rejects definite Godot 4 mistakes. Does NOT attempt to catch
-## subtler issues — those are Godot's parser's job.
 static func lint_gdscript_source(source: String) -> Dictionary:
 	for deprecated: String in DEPRECATED_CLASSES:
 		if _uses_deprecated_class(source, deprecated):
@@ -157,13 +170,7 @@ static func lint_gdscript_source(source: String) -> Dictionary:
 	return _ok("Linter passed.")
 
 
-# --- Internal: linter rules -------------------------------------------
-# Each rule is a small function so it can be tested in isolation.
-
 static func _uses_deprecated_class(source: String, class_name_str: String) -> bool:
-	# Match "extends Spatial", "extends KinematicBody2D", etc.,
-	# or type hints ": Spatial", ": KinematicBody2D" — with word
-	# boundaries so "SpatialThing" does not match "Spatial".
 	if _has_word_sequence(source, "extends " + class_name_str):
 		return true
 	if _has_word_sequence(source, ": " + class_name_str):
@@ -174,8 +181,6 @@ static func _uses_deprecated_class(source: String, class_name_str: String) -> bo
 static func _has_move_and_slide_delta_bug(source: String) -> bool:
 	if not source.contains("move_and_slide("):
 		return false
-	# The bug: velocity being multiplied by delta before the call.
-	# We look for both the inline and compound-assignment forms.
 	if source.contains("velocity * delta"):
 		return true
 	if source.contains("velocity *= delta"):
@@ -184,8 +189,6 @@ static func _has_move_and_slide_delta_bug(source: String) -> bool:
 
 
 static func _has_string_signal_connect(source: String) -> bool:
-	# Matches .connect(" and .connect(' — the Godot 3 pattern.
-	# Godot 4 uses .connect(callable).
 	if source.contains(".connect(\""):
 		return true
 	if source.contains(".connect('"):
@@ -193,8 +196,6 @@ static func _has_string_signal_connect(source: String) -> bool:
 	return false
 
 
-## True if `needle` appears in `source` and is not part of a longer
-## identifier. Cheap approximation: checks the char before/after.
 static func _has_word_sequence(source: String, needle: String) -> bool:
 	var start: int = 0
 	while true:
@@ -217,7 +218,6 @@ static func _has_word_sequence(source: String, needle: String) -> bool:
 
 
 static func _is_word_char(c: int) -> bool:
-	# 0-9, A-Z, a-z, _
 	if c >= 48 and c <= 57:
 		return true
 	if c >= 65 and c <= 90:
@@ -229,7 +229,7 @@ static func _is_word_char(c: int) -> bool:
 	return false
 
 
-# --- Internal: helpers -------------------------------------------------
+# --- Helpers ----------------------------------------------------------
 
 static func _check_size(path: String, max_bytes: int) -> Dictionary:
 	var f: FileAccess = FileAccess.open(path, FileAccess.READ)

@@ -15,6 +15,7 @@ signal tool_call_finished(tool_name: String, ok: bool, message: String)
 signal approval_required(tool_name: String, args: Dictionary)
 signal error_occurred(message: String)
 signal approval_resolved(approved: bool)
+signal checkpoint_created(id: String, label: String)
 
 
 const RETRY_DELAY_SEC: float = 1.2
@@ -38,6 +39,7 @@ var _inspected: Dictionary = {}
 var _active_http: HTTPRequest = null
 var _approval_responded: bool = false
 var _approval_result: bool = false
+var _current_checkpoint_id: String = ""
 
 
 func configure(
@@ -89,6 +91,45 @@ func cancel() -> void:
 		_active_http.cancel_request()
 
 
+# --- Checkpoints ------------------------------------------------------
+
+## True if there is at least one checkpoint on disk that can be undone.
+func can_undo() -> bool:
+	return not GDACheckpoint.latest_id().is_empty()
+
+
+## Restore the most recent checkpoint. Also clears conversation
+## history — after a rollback the conversation refers to file states
+## that no longer exist. Returns {ok, message, data}.
+func undo_last() -> Dictionary:
+	if _running:
+		return { "ok": false, "message": "Cannot undo while a turn is running.", "data": {} }
+
+	var ckpt_id: String = GDACheckpoint.latest_id()
+	if ckpt_id.is_empty():
+		return { "ok": false, "message": "No checkpoints to undo.", "data": {} }
+
+	var meta: Dictionary = GDACheckpoint.get_checkpoint_meta(ckpt_id)
+	var label: String = str(meta.get("label", ""))
+
+	var r: Dictionary = GDACheckpoint.restore(ckpt_id)
+	if bool(r.get("ok", false)):
+		GDACheckpoint.discard(ckpt_id)
+		_history.clear()
+		_inspected.clear()
+		var d: Dictionary = r.get("data", {})
+		var restored: Array = d.get("restored", [])
+		var failed: Array = d.get("failed", [])
+		var msg: String = "Undid checkpoint \"%s\". %d files restored" % [label, restored.size()]
+		if not failed.is_empty():
+			msg += ", %d failed" % failed.size()
+		msg += "."
+		return { "ok": true, "message": msg, "data": d }
+	return r
+
+
+# --- Turn entry -------------------------------------------------------
+
 func start_turn(user_text: String) -> void:
 	if _running:
 		error_occurred.emit("A turn is already running.")
@@ -109,8 +150,21 @@ func start_turn(user_text: String) -> void:
 	_cancelled = false
 	_step_count = 0
 	_inspected.clear()
+	_current_checkpoint_id = ""
 
 	_history.append({ "role": "user", "content": trimmed_input })
+
+	# Begin a checkpoint for this turn. Mutating tools will snapshot
+	# their targets into it. If begin() fails we proceed without a
+	# checkpoint — the per-write backup chain still protects writes.
+	var label: String = trimmed_input
+	if label.length() > 60:
+		label = label.substr(0, 60) + "…"
+	_current_checkpoint_id = GDACheckpoint.begin(label, "agent")
+	if not _current_checkpoint_id.is_empty():
+		GDACheckpoint.cleanup_old()
+		checkpoint_created.emit(_current_checkpoint_id, label)
+
 	turn_started.emit()
 
 	var result: Dictionary = await _run_loop()
@@ -255,9 +309,6 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		if DEBUG_LOGGING:
 			print("[GDA]   HTTP ", status, ": ", body_bytes.get_string_from_utf8().substr(0, 300))
 
-		# Fallback: some providers (notably ModelScope) reject requests
-		# that include tools for models without function-calling support.
-		# Retry once without tools so the user still gets a reply.
 		if (
 			status == 400
 			and not tools_canonical.is_empty()
@@ -321,14 +372,8 @@ func _do_http_post(
 
 	if result_code != HTTPRequest.RESULT_SUCCESS:
 		if result_code == HTTPRequest.RESULT_REQUEST_FAILED:
-			return {
-				"ok": false,
-				"message": "Network error: could not reach the provider.",
-			}
-		return {
-			"ok": false,
-			"message": "HTTP request failed (result %d)." % result_code,
-		}
+			return { "ok": false, "message": "Network error: could not reach the provider." }
+		return { "ok": false, "message": "HTTP request failed (result %d)." % result_code }
 
 	return { "ok": true, "status": status, "body": body_bytes }
 
@@ -425,6 +470,7 @@ func _build_context() -> Dictionary:
 		"editor_interface": _editor_interface,
 		"plugin_root": "res://addons/gd_ai_assistant/",
 		"agent_mode": _settings.get_agent_mode(),
+		"checkpoint_id": _current_checkpoint_id,
 	}
 
 

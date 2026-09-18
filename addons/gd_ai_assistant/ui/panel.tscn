@@ -1,8 +1,8 @@
-[gd_scene format=3 uid="uid://bonopop4o8mks"]
+[gd_scene format=3 uid="uid://6k3itrti7fmu"]
 
 [ext_resource type="Script" uid="uid://dew5uudaebhx7" path="res://addons/gd_ai_assistant/ui/panel.gd" id="1"]
 
-[node name="Panel" type="VBoxContainer" unique_id=1111983458]
+[node name="Panel" type="VBoxContainer" unique_id=958727734]
 custom_minimum_size = Vector2(0, 240)
 anchors_preset = 15
 anchor_right = 1.0
@@ -10,16 +10,16 @@ anchor_bottom = 1.0
 theme_override_constants/separation = 6
 script = ExtResource("1")
 
-[node name="TopBar" type="HFlowContainer" parent="." unique_id=810065420]
+[node name="TopBar" type="HFlowContainer" parent="." unique_id=915526699]
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="ProviderDropdown" type="OptionButton" parent="TopBar" unique_id=1392849682]
+[node name="ProviderDropdown" type="OptionButton" parent="TopBar" unique_id=1606201134]
 custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
 clip_text = true
-selected = 5
+selected = 0
 item_count = 11
 popup/item_0/text = "OpenRouter"
 popup/item_0/id = 0
@@ -44,28 +44,34 @@ popup/item_9/id = 9
 popup/item_10/text = "Custom"
 popup/item_10/id = 10
 
-[node name="ModelInput" type="LineEdit" parent="TopBar" unique_id=148186567]
+[node name="ModelInput" type="LineEdit" parent="TopBar" unique_id=587465896]
 custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "deepseek-chat"
+text = "openrouter/free"
 placeholder_text = "model id"
 
-[node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=2124276753]
+[node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=476376126]
 custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
 clip_text = true
 
-[node name="RefreshModelsBtn" type="Button" parent="TopBar" unique_id=1442398211]
+[node name="RefreshModelsBtn" type="Button" parent="TopBar" unique_id=965962611]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "⟳ Models"
 
-[node name="ModeDropdown" type="OptionButton" parent="TopBar" unique_id=1321586527]
+[node name="FastCheck" type="CheckBox" parent="TopBar" unique_id=709204341]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+button_pressed = true
+text = "⚡ Fast"
+
+[node name="ModeDropdown" type="OptionButton" parent="TopBar" unique_id=330521843]
 custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 clip_text = true
-selected = 2
+selected = 3
 item_count = 4
 popup/item_0/text = "ASK (no tools)"
 popup/item_0/id = 0
@@ -76,22 +82,22 @@ popup/item_2/id = 2
 popup/item_3/text = "AUTO (auto edit)"
 popup/item_3/id = 3
 
-[node name="SettingsBtn" type="Button" parent="TopBar" unique_id=27637171]
+[node name="SettingsBtn" type="Button" parent="TopBar" unique_id=495091398]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "Settings"
 
-[node name="ModelFilterBar" type="HFlowContainer" parent="." unique_id=600162133]
+[node name="ModelFilterBar" type="HFlowContainer" parent="." unique_id=1788772927]
 visible = false
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="FilterLabel" type="Label" parent="ModelFilterBar" unique_id=14451459]
+[node name="FilterLabel" type="Label" parent="ModelFilterBar" unique_id=1028360975]
 layout_mode = 2
 text = "Filter:"
 
-[node name="FilterDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1183446254]
+[node name="FilterDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1615780795]
 custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
 clip_text = true
@@ -104,11 +110,11 @@ popup/item_1/id = 1
 popup/item_2/text = "Paid only"
 popup/item_2/id = 2
 
-[node name="SortLabel" type="Label" parent="ModelFilterBar" unique_id=1602591572]
+[node name="SortLabel" type="Label" parent="ModelFilterBar" unique_id=369088012]
 layout_mode = 2
 text = "Sort:"
 
-[node name="SortDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1697350287]
+[node name="SortDropdown" type="OptionButton" parent="ModelFilterBar" unique_id=1999037707]
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 clip_text = true
@@ -125,32 +131,33 @@ popup/item_3/id = 3
 popup/item_4/text = "Smartest (heuristic)"
 popup/item_4/id = 4
 
-[node name="SettingsBar" type="HFlowContainer" parent="." unique_id=1063600075]
+[node name="SettingsBar" type="HFlowContainer" parent="." unique_id=785711493]
+visible = false
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="APIKeyLabel" type="Label" parent="SettingsBar" unique_id=314299557]
+[node name="APIKeyLabel" type="Label" parent="SettingsBar" unique_id=1705184211]
 layout_mode = 2
 text = "API Key:"
 
-[node name="APIKeyInput" type="LineEdit" parent="SettingsBar" unique_id=2033156586]
+[node name="APIKeyInput" type="LineEdit" parent="SettingsBar" unique_id=1088189799]
 custom_minimum_size = Vector2(180, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 secret = true
 
-[node name="SaveKeyBtn" type="Button" parent="SettingsBar" unique_id=373358297]
+[node name="SaveKeyBtn" type="Button" parent="SettingsBar" unique_id=2040199530]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "Save"
 
-[node name="DesktopFeaturesCheck" type="CheckBox" parent="SettingsBar" unique_id=1037118616]
+[node name="DesktopFeaturesCheck" type="CheckBox" parent="SettingsBar" unique_id=231961736]
 custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
 text = "Desktop features"
 
-[node name="ChatHistory" type="RichTextLabel" parent="." unique_id=495164984]
+[node name="ChatHistory" type="RichTextLabel" parent="." unique_id=617729573]
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_vertical = 3
@@ -158,73 +165,78 @@ focus_mode = 2
 scroll_following = true
 selection_enabled = true
 
-[node name="InputBar" type="HFlowContainer" parent="." unique_id=899935090]
+[node name="InputBar" type="HFlowContainer" parent="." unique_id=1306561476]
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="MessageInput" type="LineEdit" parent="InputBar" unique_id=426857856]
+[node name="MessageInput" type="LineEdit" parent="InputBar" unique_id=932331815]
 custom_minimum_size = Vector2(200, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Ask GD AI Assistant..."
 
-[node name="SendBtn" type="Button" parent="InputBar" unique_id=951160298]
+[node name="SendBtn" type="Button" parent="InputBar" unique_id=837753432]
 custom_minimum_size = Vector2(80, 48)
 layout_mode = 2
 text = "Send"
 
-[node name="StopBtn" type="Button" parent="InputBar" unique_id=629153320]
+[node name="StopBtn" type="Button" parent="InputBar" unique_id=57945815]
 custom_minimum_size = Vector2(80, 48)
 layout_mode = 2
 disabled = true
 text = "Stop"
 
-[node name="CopyLatestBtn" type="Button" parent="InputBar" unique_id=747918687]
+[node name="CopyLatestBtn" type="Button" parent="InputBar" unique_id=883650015]
 custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 text = "Copy Latest"
 
-[node name="CopyAllBtn" type="Button" parent="InputBar" unique_id=1362554694]
+[node name="CopyAllBtn" type="Button" parent="InputBar" unique_id=660119995]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "Copy All"
 
-[node name="StatusBar" type="HFlowContainer" parent="." unique_id=1468140374]
+[node name="StatusBar" type="HFlowContainer" parent="." unique_id=24529069]
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="StatusLabel" type="Label" parent="StatusBar" unique_id=559293415]
+[node name="StatusLabel" type="Label" parent="StatusBar" unique_id=1949521800]
 custom_minimum_size = Vector2(140, 24)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Ready"
 clip_text = true
 
-[node name="TokenLabel" type="Label" parent="StatusBar" unique_id=1849976100]
+[node name="TokenLabel" type="Label" parent="StatusBar" unique_id=975816218]
 layout_mode = 2
 clip_text = true
 
-[node name="ApprovalBar" type="HFlowContainer" parent="." unique_id=436704538]
+[node name="UndoBtn" type="Button" parent="StatusBar" unique_id=900173599]
+custom_minimum_size = Vector2(100, 48)
+layout_mode = 2
+text = "⟲ Undo"
+
+[node name="ApprovalBar" type="HFlowContainer" parent="." unique_id=1214091569]
 visible = false
 layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 4
 
-[node name="ApprovalLabel" type="Label" parent="ApprovalBar" unique_id=563469795]
+[node name="ApprovalLabel" type="Label" parent="ApprovalBar" unique_id=417117908]
 custom_minimum_size = Vector2(180, 24)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Approve this change?"
 clip_text = true
 
-[node name="ApproveBtn" type="Button" parent="ApprovalBar" unique_id=946214641]
+[node name="ApproveBtn" type="Button" parent="ApprovalBar" unique_id=216869711]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "Approve"
 
-[node name="RejectBtn" type="Button" parent="ApprovalBar" unique_id=620016929]
+[node name="RejectBtn" type="Button" parent="ApprovalBar" unique_id=348924972]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
 text = "Reject"

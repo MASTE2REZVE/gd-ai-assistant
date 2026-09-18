@@ -1,3 +1,4 @@
 .godot/
 *.cfg
 user://
+screenshots/*.import
