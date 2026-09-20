@@ -1,6 +1,6 @@
 # GD AI Assistant
 
-An AI coding assistant that lives inside the Godot 4 editor. Chat with an LLM, and let it read, edit, and create files in your project — safely.
+An AI coding assistant that lives inside the Godot 4 editor. Chat with an LLM and let it read, write, create, and modify files in your project — safely.
 
 **Android-first.** Built and tested on an Android tablet. Works on Windows, macOS, and Linux too.
 
@@ -8,7 +8,7 @@ An AI coding assistant that lives inside the Godot 4 editor. Chat with an LLM, a
 
 ## Why another AI plugin?
 
-Most Godot AI plugins assume you're on a desktop. GD AI Assistant is built for people who code on a tablet, with a bottom-panel UI sized for touch, wrapped layout, and careful memory limits.
+Most Godot AI plugins assume you're on a desktop. GD AI Assistant is built for people who code on a tablet — bottom-panel UI sized for touch, wrapped layout, careful memory limits.
 
 It also has the widest provider support of any Godot AI plugin: **11 providers** out of the box, plus a Custom endpoint for anything else.
 
@@ -18,14 +18,18 @@ And every file edit is protected by a **seven-layer safety chain** — validate,
 
 ## Features
 
-- **11 AI providers** — OpenRouter, ModelScope, OpenAI, Anthropic, Google Gemini, Groq, DeepSeek, Mistral, xAI Grok, Ollama (local), LM Studio (local), plus Custom.
+- **11 AI providers** — OpenRouter, ModelScope, OpenAI, Google Gemini, Groq, DeepSeek, Mistral, xAI Grok, Ollama (local), LM Studio (local), plus Custom.
+- **23 tools** — read/write/patch files, search, list, create scenes, add/remove/rename/move nodes, set node properties, create and attach scripts, inspect script symbols.
 - **4 agent modes** — ASK (chat only), PLAN (read-only), AGENT (asks before each edit), AUTO (edits automatically with rollback).
+- **Fast mode** — skip exploration; write directly without reading the project first.
+- **Uncapped mode** — raise the agent step limit from 20 (mobile) / 40 (desktop) to 200 for complex multi-step tasks.
+- **Undo** — every turn creates a checkpoint. One click reverts every file the AI touched.
 - **Safe file edits** — every write backs up the original, verifies the result, and rolls back if anything is broken.
-- **Read-before-edit** — the AI cannot edit a file it hasn't read in the current turn.
+- **Read-before-edit** — the AI cannot edit a file it hasn't read or written this turn.
 - **Model filter + sort** — find free models, sort by cost, or rank by coding-quality heuristics.
 - **Local models supported** — run Ollama or LM Studio with zero cloud dependency.
 - **Token efficiency** — request budget trimming, per-turn history windowing, size caps on tool results.
-- **Android-first UI** — 48px touch targets, wrap-friendly layout, safe on small screens.
+- **Android-first UI** — 48px touch targets, wrap-friendly layout.
 
 ---
 
@@ -77,14 +81,26 @@ You can switch modes from the dropdown at the top of the panel at any time.
 Every file write goes through seven layers:
 
 1. **Path guard** — `res://` only, no `..`, protected files blocked (`project.godot`, `.godot/`, the plugin's own code).
-2. **Read-before-edit** — the AI must have read the file this turn.
+2. **Read-before-edit** — the AI must have read or written the file this turn.
 3. **Backup** — the original is copied to `user://gd_ai_assistant_backups/`.
 4. **Verify** — the written file is parsed and linted.
 5. **Rollback** — if verification fails, the backup is restored.
 6. **Approval gate** — in AGENT mode, you approve before the write happens.
-7. **Checkpoints** — *(coming in v0.2)* every successful write becomes a restorable point.
+7. **Checkpoints** — every successful write becomes a restorable point. Click ⟲ Undo to revert the whole turn.
 
 If something goes wrong, the plugin restores the previous file and tells you exactly what failed.
+
+---
+
+## Available tools
+
+**Project (6):** `get_project_info`, `list_files`, `search_files`, `read_file`, `write_file`, `patch_file`
+
+**Scene (12):** `list_scenes`, `get_scene_tree`, `create_scene`, `open_scene`, `save_scene`, `get_node`, `add_node`, `remove_node`, `rename_node`, `move_node`, `set_node_property`, `get_node_property`
+
+**Script (5):** `create_script`, `read_script`, `validate_script`, `get_script_symbols`, `attach_script`
+
+`.tscn` files are never edited as raw text — always via Godot's `PackedScene` and `ResourceSaver`.
 
 ---
 
@@ -93,15 +109,15 @@ If something goes wrong, the plugin restores the previous file and tells you exa
 ![GD AI Assistant panel](screenshots/panel.jpg)
 
 ![Chat in action](screenshots/chat.jpg)
+
 ---
 
 ## Roadmap
 
-- **v0.1.0** *(current)* — core plugin, 11 providers, 6 project tools, 4 agent modes, full safety chain.
-- **v0.2.0** — scene tools (add nodes, set properties, connect signals), script tools.
-- **v0.3.0** — screenshot capture, vision model support.
-- **v0.4.0** — pixel art generation via image APIs.
-- **v1.0.0** — checkpoints, diff preview, @-mentions, full documentation.
+- **v0.1.0** — core plugin, 11 providers, 6 project tools.
+- **v0.2.0** *(current)* — 12 scene tools, 5 script tools, checkpoints/undo, fast mode, uncapped mode, live status.
+- **v0.3.0** — signal tools, editor tools, diff preview.
+- **v1.0.0** — @-mentions, web search, streaming, full documentation.
 
 ---
 

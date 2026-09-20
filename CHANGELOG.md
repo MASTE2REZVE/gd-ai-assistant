@@ -3,6 +3,32 @@
 All notable changes to GD AI Assistant are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] — 2026-09-20
+
+Scene and script tools, plus a full checkpoint / undo system.
+
+### Added
+- **12 scene tools** — `list_scenes`, `get_scene_tree`, `create_scene`, `open_scene`, `save_scene`, `get_node`, `add_node`, `remove_node`, `rename_node`, `move_node`, `set_node_property`, `get_node_property`. The AI can now build `.tscn` scenes from a chat prompt.
+- **5 script tools** — `create_script`, `read_script`, `validate_script`, `get_script_symbols`, `attach_script`. Create GDScript files, inspect their symbols, and attach them to nodes.
+- **Checkpoints / undo** — every turn creates a checkpoint. Click ⟲ Undo (or type `@undo`) to revert every file the AI touched during that turn. Checkpoints persist across editor restarts.
+- **Fast mode** — a ⚡ Fast toggle that tells the model to skip exploration and write directly. Roughly 40% faster on simple tasks.
+- **Uncapped mode** — an ∞ Uncapped toggle that raises the agent step limit from 20 (mobile) / 40 (desktop) to 200.
+- **Live status display** — the status bar now shows what the agent is doing in real time: "Thinking (step 3/20)...", "Running tool: add_node...", "Waiting for your approval...".
+- **Instant FileSystem refresh** — new and modified files appear in Godot's FileSystem dock within 1–2 seconds, no project reload required.
+- **Abstract-class detection** — attempting to create `Light3D`, `Shape3D`, or another abstract class now returns a helpful error listing concrete subclasses.
+
+### Changed
+- Chained edits work in a single turn: writing a file marks it as inspected, so a follow-up mutation on the same file does not require a fresh `read_file`.
+- `get_script_symbols` no longer lists `_`-prefixed (private) properties, methods, or constants.
+
+### Fixed
+- Removed an OpenRouter API key that could leak into `panel.tscn` if the settings bar was open. The key field now shows a `••••••••••••••••` placeholder instead of the real key. This prevents accidental exposure via Git commits.
+
+### Known limitations
+- Streaming responses are not enabled — the plugin uses non-streaming requests. The code is present but disabled pending compatibility testing.
+- Anthropic is registry-listed but not implemented (native API differs from OpenAI's).
+- Mutating scene tools refuse to run if the scene is currently open in the editor. Close the scene first.
+
 ## [0.1.0] — 2026-09-15
 
 First public release.
@@ -21,7 +47,7 @@ First public release.
 - Copy Latest / Copy All buttons.
 
 ### Known limitations
-- Scene, script, signal, and resource tools arrive in v0.2.0.
+- Scene, script, signal, and resource tools arrive in v0.2.0 and later.
 - Anthropic provider is registry-listed but not yet implemented (native API differs from OpenAI's).
 - No streaming responses in v0.1.0.
 - No screenshot or image generation support yet.
