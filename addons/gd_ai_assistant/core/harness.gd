@@ -18,6 +18,7 @@ signal status_changed(text: String)
 const RETRY_DELAY_SEC: float = 1.2
 const DEFAULT_MAX_STEPS: int = 40
 const MOBILE_MAX_STEPS: int = 20
+const UNCAPPED_MAX_STEPS: int = 200
 const DEBUG_LOGGING: bool = false
 
 
@@ -174,14 +175,17 @@ func _run_loop() -> Dictionary:
 		_settings.get_desktop_features_enabled()
 	)
 	var token_budget: int = int(limits.get("token_budget", 4000))
-	var max_steps: int = (
-		MOBILE_MAX_STEPS if GDAPlatform.is_mobile_os() else DEFAULT_MAX_STEPS
-	)
+
+	var max_steps: int = DEFAULT_MAX_STEPS
+	if GDAPlatform.is_mobile_os():
+		max_steps = MOBILE_MAX_STEPS
+	if _settings.get_uncapped_mode():
+		max_steps = UNCAPPED_MAX_STEPS
 
 	while not _cancelled:
 		_step_count += 1
 		if _step_count > max_steps:
-			return _fail("Step limit reached (%d)." % max_steps)
+			return _fail("Step limit reached (%d). Enable Uncapped mode to raise it." % max_steps)
 
 		status_changed.emit("Thinking (step %d/%d)..." % [_step_count, max_steps])
 
@@ -297,27 +301,8 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		var stream_result: Dictionary = await _send_streaming(
 			url, headers, JSON.stringify(stream_body), provider, tools_canonical
 		)
-		# Fallback: if streaming failed for any reason other than a
-		# tool-not-supported 400 (which we handle below), retry
-		# non-streaming once.
 		if bool(stream_result.get("ok", false)):
 			return stream_result
-		if int(stream_result.get("status", 0)) == 400:
-			var err_body: PackedByteArray = stream_result.get(
-				"error_body", PackedByteArray()
-			)
-			var err_text: String = provider.parse_error_response(400, err_body)
-			if "tool" in err_text.to_lower() and not tools_canonical.is_empty():
-				status_changed.emit("Retrying without tools...")
-				var no_tools: Dictionary = provider.build_request(
-					model, messages, [], temperature
-				)
-				no_tools["stream"] = true
-				return await _send_streaming(
-					url, headers, JSON.stringify(no_tools), provider, []
-				)
-			return _fail(err_text)
-		# Streaming failed. Fall through to non-streaming.
 		if DEBUG_LOGGING:
 			print("[GDA] Streaming failed: ", stream_result.get("message", ""))
 			print("[GDA] Falling back to non-streaming.")

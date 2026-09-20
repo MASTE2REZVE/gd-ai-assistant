@@ -19,36 +19,11 @@ theme_override_constants/v_separation = 4
 custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
 clip_text = true
-selected = 0
-item_count = 11
-popup/item_0/text = "OpenRouter"
-popup/item_0/id = 0
-popup/item_1/text = "ModelScope"
-popup/item_1/id = 1
-popup/item_2/text = "OpenAI"
-popup/item_2/id = 2
-popup/item_3/text = "Google Gemini"
-popup/item_3/id = 3
-popup/item_4/text = "Groq"
-popup/item_4/id = 4
-popup/item_5/text = "DeepSeek"
-popup/item_5/id = 5
-popup/item_6/text = "Mistral"
-popup/item_6/id = 6
-popup/item_7/text = "xAI Grok"
-popup/item_7/id = 7
-popup/item_8/text = "Ollama (local)"
-popup/item_8/id = 8
-popup/item_9/text = "LM Studio (local)"
-popup/item_9/id = 9
-popup/item_10/text = "Custom"
-popup/item_10/id = 10
 
 [node name="ModelInput" type="LineEdit" parent="TopBar" unique_id=587465896]
 custom_minimum_size = Vector2(140, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "deepseek/deepseek-v4-flash-0731:free"
 placeholder_text = "model id"
 
 [node name="ModelListDropdown" type="OptionButton" parent="TopBar" unique_id=476376126]
@@ -64,23 +39,17 @@ text = "⟳ Models"
 [node name="FastCheck" type="CheckBox" parent="TopBar" unique_id=709204341]
 custom_minimum_size = Vector2(90, 48)
 layout_mode = 2
-button_pressed = true
 text = "⚡ Fast"
+
+[node name="UncappedCheck" type="CheckBox" parent="TopBar" unique_id=800345120]
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+text = "∞ Uncapped"
 
 [node name="ModeDropdown" type="OptionButton" parent="TopBar" unique_id=330521843]
 custom_minimum_size = Vector2(110, 48)
 layout_mode = 2
 clip_text = true
-selected = 3
-item_count = 4
-popup/item_0/text = "ASK (no tools)"
-popup/item_0/id = 0
-popup/item_1/text = "PLAN (read only)"
-popup/item_1/id = 1
-popup/item_2/text = "AGENT (ask first)"
-popup/item_2/id = 2
-popup/item_3/text = "AUTO (auto edit)"
-popup/item_3/id = 3
 
 [node name="SettingsBtn" type="Button" parent="TopBar" unique_id=495091398]
 custom_minimum_size = Vector2(90, 48)
@@ -101,14 +70,6 @@ text = "Filter:"
 custom_minimum_size = Vector2(130, 48)
 layout_mode = 2
 clip_text = true
-selected = 0
-item_count = 3
-popup/item_0/text = "All models"
-popup/item_0/id = 0
-popup/item_1/text = "Free only"
-popup/item_1/id = 1
-popup/item_2/text = "Paid only"
-popup/item_2/id = 2
 
 [node name="SortLabel" type="Label" parent="ModelFilterBar" unique_id=369088012]
 layout_mode = 2
@@ -118,18 +79,6 @@ text = "Sort:"
 custom_minimum_size = Vector2(170, 48)
 layout_mode = 2
 clip_text = true
-selected = 0
-item_count = 5
-popup/item_0/text = "A → Z"
-popup/item_0/id = 0
-popup/item_1/text = "Cheapest first"
-popup/item_1/id = 1
-popup/item_2/text = "Most expensive"
-popup/item_2/id = 2
-popup/item_3/text = "Best for coding"
-popup/item_3/id = 3
-popup/item_4/text = "Smartest (heuristic)"
-popup/item_4/id = 4
 
 [node name="SettingsBar" type="HFlowContainer" parent="." unique_id=785711493]
 visible = false

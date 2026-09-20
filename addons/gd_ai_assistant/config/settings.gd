@@ -87,6 +87,15 @@ func set_fast_mode(value: bool) -> void:
 	_dirty = true
 
 
+func get_uncapped_mode() -> bool:
+	return bool(_config.get_value(SECTION_AGENT, "uncapped_mode", false))
+
+
+func set_uncapped_mode(value: bool) -> void:
+	_config.set_value(SECTION_AGENT, "uncapped_mode", value)
+	_dirty = true
+
+
 func get_api_key(provider_id: String) -> String:
 	return str(_config.get_value(SECTION_PROVIDERS, provider_id + "_api_key", ""))
 
