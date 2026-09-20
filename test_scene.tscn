@@ -1,7 +1,0 @@
-[gd_scene format=3 uid="uid://efa3xd8xlfp6"]
-
-[node name="World" type="Node3D" unique_id=182082146]
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1773979486]
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=537635234]

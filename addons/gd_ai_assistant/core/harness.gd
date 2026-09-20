@@ -429,13 +429,20 @@ func _execute_tool_call(tc: Dictionary) -> Dictionary:
 	tool_call_started.emit(tool_name, args_dict)
 	var result: Dictionary = await tool.execute(args_dict, _build_context())
 
-	if tool_name == "read_file" and bool(result.get("ok", false)):
-		var path: String = str(args_dict.get("path", ""))
-		if not path.is_empty():
-			_inspected[GDAPathGuard.normalize(path)] = true
-
 	var ok: bool = bool(result.get("ok", false))
 	var msg: String = str(result.get("message", ""))
+
+	# Mark the target file as inspected so chained edits don't need an
+	# extra read_file:
+	#   - after a successful read_file, the AI has seen the content
+	#   - after a successful mutating tool, the AI just wrote it
+	if ok:
+		var should_mark: bool = (tool_name == "read_file") or tool.is_mutating()
+		if should_mark:
+			var target: String = _extract_target_path(args_dict)
+			if not target.is_empty():
+				_inspected[target] = true
+
 	tool_call_finished.emit(tool_name, ok, msg)
 	return result
 

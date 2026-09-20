@@ -2,30 +2,10 @@
 class_name GDAToolScene
 extends RefCounted
 
-## GD AI Assistant — Scene Tools
-##
-## 12 tools for reading, creating, and modifying .tscn files.
-## .tscn is NEVER edited as raw text — always via PackedScene +
-## ResourceSaver, matching the anchor's safety rule.
-##
-## Mutating tools refuse to run on a scene that is currently open in
-## the editor. Close the scene first. This prevents the plugin from
-## clobbering the user's unsaved editor changes.
-##
-## The EditorInterface comes from context["editor_interface"].
-## NOTE: We deliberately avoid EditorInterface as a type hint on
-## function signatures. Godot 4.x has a VM bug (opcode 68) that
-## crashes when a static @tool function uses a native editor class
-## as a return/parameter type. Duck typing works fine.
-
 const MAX_SCENE_BYTES: int = 4 * 1024 * 1024
 const MAX_TREE_DEPTH: int = 6
 const MAX_TREE_LINES: int = 300
 
-
-# ============================================================
-# Shared helpers
-# ============================================================
 
 static func _snapshot_if_checkpointed(context: Dictionary, path: String) -> String:
 	if not context.has("checkpoint_id"):
@@ -39,8 +19,6 @@ static func _snapshot_if_checkpointed(context: Dictionary, path: String) -> Stri
 	return str(r.get("message", "Unknown checkpoint error"))
 
 
-# Returns EditorInterface or null. Deliberately untyped to avoid the
-# Godot VM bug mentioned above.
 static func _editor_from_context(context: Dictionary):
 	return context.get("editor_interface", null)
 
@@ -77,6 +55,27 @@ static func _resolve_node(root: Node, path: String) -> Node:
 	return root.get_node_or_null(path)
 
 
+## Validate a class name for use as a node. Returns {ok, message, is_instantiable}.
+## If the class exists but is abstract, includes concrete subclass hints.
+static func _validate_node_class(class_name_str: String) -> Dictionary:
+	if not ClassDB.class_exists(class_name_str):
+		return { "ok": false, "message": "Unknown class: " + class_name_str }
+	if not ClassDB.is_parent_class(class_name_str, "Node"):
+		return { "ok": false, "message": "Not a Node class: " + class_name_str }
+	if not ClassDB.can_instantiate(class_name_str):
+		var hints: Array[String] = []
+		for child: String in ClassDB.get_inheriters_from_class(class_name_str):
+			if ClassDB.can_instantiate(child) and ClassDB.is_parent_class(child, "Node"):
+				hints.append(child)
+			if hints.size() >= 4:
+				break
+		var msg: String = "'%s' is abstract and cannot be instantiated." % class_name_str
+		if not hints.is_empty():
+			msg += " Concrete subclasses: " + ", ".join(hints) + "."
+		return { "ok": false, "message": msg }
+	return { "ok": true, "message": "" }
+
+
 # ============================================================
 # list_scenes
 # ============================================================
@@ -92,10 +91,7 @@ class ListScenes extends GDAToolBase:
 		return {
 			"type": "object",
 			"properties": {
-				"path": {
-					"type": "string",
-					"description": "res:// directory to search. Use res:// for project root.",
-				},
+				"path": {"type": "string"},
 			},
 			"required": ["path"],
 		}
@@ -149,11 +145,8 @@ class GetSceneTree extends GDAToolBase:
 		return {
 			"type": "object",
 			"properties": {
-				"path": {"type": "string", "description": "res:// .tscn path."},
-				"max_depth": {
-					"type": "integer",
-					"description": "Max depth to descend. Default 4.",
-				},
+				"path": {"type": "string"},
+				"max_depth": {"type": "integer"},
 			},
 			"required": ["path"],
 		}
@@ -218,21 +211,15 @@ class CreateScene extends GDAToolBase:
 		return "create_scene"
 
 	func get_description() -> String:
-		return (
-			"Create a new .tscn file at res:// path with a single root "
-			+ "node of the given Godot class. Example: root_type=Node3D."
-		)
+		return "Create a new .tscn file at res:// path with a single root node."
 
 	func get_parameters_schema() -> Dictionary:
 		return {
 			"type": "object",
 			"properties": {
-				"path": {"type": "string", "description": "res:// .tscn path to create."},
-				"root_type": {
-					"type": "string",
-					"description": "Godot class for the root, e.g. Node3D, Node2D, Control.",
-				},
-				"root_name": {"type": "string", "description": "Optional name for the root."},
+				"path": {"type": "string"},
+				"root_type": {"type": "string"},
+				"root_name": {"type": "string"},
 			},
 			"required": ["path", "root_type"],
 		}
@@ -256,10 +243,9 @@ class CreateScene extends GDAToolBase:
 		if FileAccess.file_exists(path):
 			return fail("Scene already exists: " + path)
 
-		if not ClassDB.class_exists(root_type):
-			return fail("Unknown class: " + root_type)
-		if not ClassDB.is_parent_class(root_type, "Node"):
-			return fail("Not a Node class: " + root_type)
+		var class_check: Dictionary = GDAToolScene._validate_node_class(root_type)
+		if not bool(class_check["ok"]):
+			return fail(str(class_check["message"]))
 
 		var root_obj: Object = ClassDB.instantiate(root_type)
 		if root_obj == null or not (root_obj is Node):
@@ -300,7 +286,7 @@ class OpenScene extends GDAToolBase:
 		return {
 			"type": "object",
 			"properties": {
-				"path": {"type": "string", "description": "res:// .tscn path."},
+				"path": {"type": "string"},
 			},
 			"required": ["path"],
 		}
@@ -371,17 +357,14 @@ class GetNode extends GDAToolBase:
 		return "get_node"
 
 	func get_description() -> String:
-		return "Return basic info about a node inside a scene: type and child count."
+		return "Return basic info about a node inside a scene."
 
 	func get_parameters_schema() -> Dictionary:
 		return {
 			"type": "object",
 			"properties": {
-				"scene_path": {"type": "string", "description": "res:// .tscn path."},
-				"node_path": {
-					"type": "string",
-					"description": "Node path relative to root. Use '.' for root.",
-				},
+				"scene_path": {"type": "string"},
+				"node_path": {"type": "string"},
 			},
 			"required": ["scene_path", "node_path"],
 		}
@@ -435,12 +418,9 @@ class AddNode extends GDAToolBase:
 			"type": "object",
 			"properties": {
 				"scene_path": {"type": "string"},
-				"parent_node_path": {
-					"type": "string",
-					"description": "Node path of the parent. Use '.' for root.",
-				},
+				"parent_node_path": {"type": "string"},
 				"node_name": {"type": "string"},
-				"node_type": {"type": "string", "description": "e.g. Sprite2D, Camera3D."},
+				"node_type": {"type": "string"},
 			},
 			"required": ["scene_path", "parent_node_path", "node_name", "node_type"],
 		}
@@ -469,10 +449,10 @@ class AddNode extends GDAToolBase:
 			return fail("Scene is open in the editor. Close it first, or use the editor directly.")
 		if node_name.is_empty():
 			return fail("node_name is required.")
-		if not ClassDB.class_exists(node_type):
-			return fail("Unknown class: " + node_type)
-		if not ClassDB.is_parent_class(node_type, "Node"):
-			return fail("Not a Node class: " + node_type)
+
+		var class_check: Dictionary = GDAToolScene._validate_node_class(node_type)
+		if not bool(class_check["ok"]):
+			return fail(str(class_check["message"]))
 
 		var packed: PackedScene = GDAToolScene._load_scene(scene_path)
 		if packed == null:
@@ -806,10 +786,7 @@ class SetNodeProperty extends GDAToolBase:
 			"properties": {
 				"scene_path": {"type": "string"},
 				"node_path": {"type": "string"},
-				"properties": {
-					"type": "object",
-					"description": "Property name -> value.",
-				},
+				"properties": {"type": "object"},
 			},
 			"required": ["scene_path", "node_path", "properties"],
 		}
@@ -977,10 +954,6 @@ class GetNodeProperty extends GDAToolBase:
 			"value": value_str,
 		})
 
-
-# ============================================================
-# Registration helper
-# ============================================================
 
 static func build_all() -> Array:
 	return [

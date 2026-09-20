@@ -3,13 +3,6 @@ class_name GDAToolRegistry
 extends RefCounted
 
 ## GD AI Assistant — Tool Registry
-##
-## Owns every tool the harness can call. Built once per session and
-## reused across turns.
-##
-## Phase 1: 6 project tools.
-## Phase 2: +12 scene tools (this revision).
-## Phases 3-4 add more by extending _register_all().
 
 var _tools: Array = []
 var _by_name: Dictionary = {}
@@ -59,17 +52,17 @@ func to_canonical_array() -> Array:
 
 
 func _register_all() -> void:
-	# Project tools (read/search/write/patch/info/list)
+	# Project tools
 	for t: Variant in GDAToolProject.build_all():
 		_register(t)
 
-	# Scene tools (list/tree/create/open/save/node ops)
+	# Scene tools
 	for t: Variant in GDAToolScene.build_all():
 		_register(t)
 
-	# Script tools:
-	#   for t in GDAToolScript.build_all():
-	#       _register(t)
+	# Script tools
+	for t: Variant in GDAToolScript.build_all():
+		_register(t)
 
 	# Signal tools:
 	#   for t in GDAToolSignals.build_all():
