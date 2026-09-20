@@ -106,9 +106,9 @@ If something goes wrong, the plugin restores the previous file and tells you exa
 
 ## Screenshots
 
-![GD AI Assistant panel](screenshots/panel.jpg)
+![GD AI Assistant panel](screenshots/panel_v02.png)
 
-![Chat in action](screenshots/chat.jpg)
+![Scene created from a chat prompt](screenshots/scene_creation.png)
 
 ---
 

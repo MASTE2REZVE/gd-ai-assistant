@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://bxtd20o4jk8f2"]
+
+[node name="World" type="Node3D" unique_id=872721082]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=412213822]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1242386534]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=373980243]

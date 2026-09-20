@@ -6,15 +6,16 @@ extends RefCounted
 ##
 ## Static class. Produces the string that goes at the top of every
 ## conversation. No state, no I/O.
-##
-## Three base variants: standard, eco, ponytail.
-## Plus a FAST overlay that turns on when the user enables the
-## "⚡ Fast" toggle — tells the model to skip exploration and write
-## directly. Fast mode is OFF by default.
 
 const BASE_RULES: String = """You are GD AI Assistant, a careful Godot 4 coding agent inside the editor.
 
-GOAL: Make the user's requested change with the smallest safe edit.
+COMPLETE THE WHOLE TASK:
+- If the user asks for multiple things, do ALL of them before you stop.
+- Example: "create a scene, add a camera, attach a script" is THREE
+  actions. Do not stop after the first.
+- Only stop when the entire request is finished, or you are blocked.
+- After each tool call, check whether the user's request is fully done.
+  If not, continue with the next tool call.
 
 BEFORE YOU EDIT:
 - Inspect first. Never guess paths, node names, or existing code.
@@ -46,13 +47,13 @@ const FAST_OVERLAY: String = """FAST MODE IS ON:
 - Skip exploration. Do NOT call get_project_info or list_files unless the task genuinely requires it.
 - If the user says "create X", write it directly.
 - If the user gives a file path, use it as-is without verifying.
-- One tool call per step. No redundant chained calls.
+- Do NOT waste tool calls on verification you don't need.
+- BUT still complete the FULL task. If the request has 3 steps, do all 3. Fast mode means fewer wasted calls, not fewer completed actions.
 - If you already know the answer, answer without tools.
-Trade-off: you may miss existing code that would have been useful. The user chose speed over thoroughness.
 """
 
 const ECO_APPENDIX: String = """
-ECO MODE: Keep replies short. One tool call per step. Skip examples and explanations unless asked.
+ECO MODE: Keep replies short. Skip examples and explanations unless asked.
 """
 
 const PONYTAIL_APPENDIX: String = """
@@ -65,10 +66,6 @@ Never strip input validation, null checks, or error handling.
 """
 
 
-## Build the system prompt for the given mode.
-## mode: "standard" | "eco" | "ponytail"
-## fast: when true, prepends the FAST_OVERLAY before the base rules.
-## extra_context: appended verbatim at the end (project name, scene summary, etc).
 static func build(
 	mode: String = "standard",
 	extra_context: String = "",

@@ -49,13 +49,26 @@ static func _save_scene_to_disk(root: Node, scene_path: String) -> Dictionary:
 	return { "ok": true, "message": "", "data": {} }
 
 
+## Resolve a node path relative to the given root. Accepts:
+##   ""        -> root
+##   "."       -> root
+##   root.name -> root  (some models pass the root name instead of ".")
+##   anything else -> root.get_node_or_null(path)
 static func _resolve_node(root: Node, path: String) -> Node:
-	if path.is_empty() or path == ".":
+	if root == null:
+		return null
+	var trimmed: String = path.strip_edges()
+	if trimmed.is_empty() or trimmed == ".":
 		return root
-	return root.get_node_or_null(path)
+	# Accept the root node's own name as an alias for ".".
+	# Also handle "/root" or "root" patterns some models produce.
+	var stripped: String = trimmed.trim_prefix("/")
+	if stripped == str(root.name) or stripped == "root":
+		return root
+	return root.get_node_or_null(trimmed)
 
 
-## Validate a class name for use as a node. Returns {ok, message, is_instantiable}.
+## Validate a class name for use as a node. Returns {ok, message}.
 ## If the class exists but is abstract, includes concrete subclass hints.
 static func _validate_node_class(class_name_str: String) -> Dictionary:
 	if not ClassDB.class_exists(class_name_str):
@@ -411,14 +424,21 @@ class AddNode extends GDAToolBase:
 		return "add_node"
 
 	func get_description() -> String:
-		return "Add a new child node of the given Godot class under parent_node_path."
+		return (
+			"Add a new child node of the given Godot class under "
+			+ "parent_node_path. Use '.' for the scene root, or pass the "
+			+ "root's own name."
+		)
 
 	func get_parameters_schema() -> Dictionary:
 		return {
 			"type": "object",
 			"properties": {
 				"scene_path": {"type": "string"},
-				"parent_node_path": {"type": "string"},
+				"parent_node_path": {
+					"type": "string",
+					"description": "Node path of the parent. Use '.' for root.",
+				},
 				"node_name": {"type": "string"},
 				"node_type": {"type": "string"},
 			},
@@ -463,7 +483,10 @@ class AddNode extends GDAToolBase:
 		var parent: Node = GDAToolScene._resolve_node(root, parent_path)
 		if parent == null:
 			root.free()
-			return fail("Parent not found: " + parent_path)
+			return fail(
+				"Parent not found: '%s'. Use '.' for the scene root or the root's own name."
+				% parent_path
+			)
 		if parent.has_node(NodePath(node_name)):
 			root.free()
 			return fail("Child name already used under parent: " + node_name)
@@ -558,6 +581,9 @@ class RemoveNode extends GDAToolBase:
 		if node == null:
 			root.free()
 			return fail("Node not found: " + node_path)
+		if node == root:
+			root.free()
+			return fail("Cannot remove the scene root.")
 		var parent: Node = node.get_parent()
 		if parent == null:
 			root.free()
@@ -728,6 +754,9 @@ class MoveNode extends GDAToolBase:
 		if node == null:
 			root.free()
 			return fail("Node not found: " + node_path)
+		if node == root:
+			root.free()
+			return fail("Cannot move the scene root.")
 		var new_parent: Node = GDAToolScene._resolve_node(root, new_parent_path)
 		if new_parent == null:
 			root.free()
