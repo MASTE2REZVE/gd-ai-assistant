@@ -64,16 +64,16 @@ func _register_all() -> void:
 	for t: Variant in GDAToolScript.build_all():
 		_register(t)
 
+	# Editor tools
+	for t: Variant in GDAToolEditor.build_all():
+		_register(t)
+
 	# Signal tools:
 	#   for t in GDAToolSignals.build_all():
 	#       _register(t)
 
 	# Resource tools:
 	#   for t in GDAToolResources.build_all():
-	#       _register(t)
-
-	# Editor tools:
-	#   for t in GDAToolEditor.build_all():
 	#       _register(t)
 
 	# Utility tools:
@@ -88,7 +88,7 @@ func _register(t: Variant) -> void:
 		)
 		return
 
-	var tool: GDAToolBase = t
+	var tool: GDAToolBase = t as GDAToolBase
 	var tool_name: String = tool.get_name()
 
 	if tool_name.is_empty():

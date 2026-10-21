@@ -18,8 +18,8 @@ And every file edit is protected by a **seven-layer safety chain** — validate,
 
 ## Features
 
-- **11 AI providers** — OpenRouter, ModelScope, OpenAI, Google Gemini, Groq, DeepSeek, Mistral, xAI Grok, Ollama (local), LM Studio (local), plus Custom.
-- **23 tools** — read/write/patch files, search, list, create scenes, add/remove/rename/move nodes, set node properties, create and attach scripts, inspect script symbols.
+- **11 AI providers** — OpenRouter, ModelScope, OpenAI, Anthropic, Google Gemini, Groq, DeepSeek, Mistral, xAI Grok, Ollama (local), LM Studio (local), plus Custom.
+- **27 tools** — read/write/patch files, search, list, create scenes, add/remove/rename/move nodes, set node properties, create and attach scripts, inspect script symbols, run/stop scenes, read runtime errors, and open files in the editor.
 - **4 agent modes** — ASK (chat only), PLAN (read-only), AGENT (asks before each edit), AUTO (edits automatically with rollback).
 - **Fast mode** — skip exploration; write directly without reading the project first.
 - **Uncapped mode** — raise the agent step limit from 20 (mobile) / 40 (desktop) to 200 for complex multi-step tasks.
@@ -100,6 +100,8 @@ If something goes wrong, the plugin restores the previous file and tells you exa
 
 **Script (5):** `create_script`, `read_script`, `validate_script`, `get_script_symbols`, `attach_script`
 
+**Editor (4):** `run_scene`, `stop_scene`, `get_errors`, `open_in_editor`
+
 `.tscn` files are never edited as raw text — always via Godot's `PackedScene` and `ResourceSaver`.
 
 ---
@@ -115,8 +117,9 @@ If something goes wrong, the plugin restores the previous file and tells you exa
 ## Roadmap
 
 - **v0.1.0** — core plugin, 11 providers, 6 project tools.
-- **v0.2.0** *(current)* — 12 scene tools, 5 script tools, checkpoints/undo, fast mode, uncapped mode, live status.
-- **v0.3.0** — signal tools, editor tools, diff preview.
+- **v0.2.0** — 12 scene tools, 5 script tools, checkpoints/undo, fast mode, uncapped mode, live status.
+- **v0.3.0** *(current)* — editor tools, codebase audit, bug fixes.
+- **v0.4.0** — signal tools, diff preview, pixel art generation via image APIs.
 - **v1.0.0** — @-mentions, web search, streaming, full documentation.
 
 ---

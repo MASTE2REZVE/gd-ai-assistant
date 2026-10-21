@@ -33,7 +33,7 @@ func configure(preset: Dictionary) -> void:
 
 	var extra: Variant = preset.get("extra_headers", PackedStringArray())
 	if extra is PackedStringArray:
-		_extra_headers = extra
+		_extra_headers = extra as PackedStringArray
 	elif extra is Array:
 		var buf: PackedStringArray = PackedStringArray()
 		for h: Variant in extra:
@@ -172,7 +172,7 @@ func parse_chat_response(body: PackedByteArray) -> Dictionary:
 	if not (root is Dictionary):
 		return { "ok": false, "message": "Provider returned non-object JSON." }
 
-	var root_dict: Dictionary = root
+	var root_dict: Dictionary = root as Dictionary
 	var choices: Variant = root_dict.get("choices", null)
 	if not (choices is Array) or (choices as Array).is_empty():
 		return { "ok": false, "message": "Provider returned no choices." }
@@ -185,7 +185,7 @@ func parse_chat_response(body: PackedByteArray) -> Dictionary:
 	if not (message is Dictionary):
 		return { "ok": false, "message": "Malformed message entry." }
 
-	var msg_dict: Dictionary = message
+	var msg_dict: Dictionary = message as Dictionary
 	var content_raw: Variant = msg_dict.get("content", "")
 	var content: String = "" if content_raw == null else str(content_raw)
 
@@ -285,7 +285,7 @@ func list_models(api_key: String, endpoint_override: String = "") -> Array:
 	for entry: Variant in (data as Array):
 		if not (entry is Dictionary):
 			continue
-		var entry_dict: Dictionary = entry
+		var entry_dict: Dictionary = entry as Dictionary
 		var model_id: String = str(entry_dict.get("id", "")).strip_edges()
 		if model_id.is_empty():
 			continue
@@ -299,7 +299,7 @@ func list_models(api_key: String, endpoint_override: String = "") -> Array:
 
 		var pricing: Variant = entry_dict.get("pricing", null)
 		if pricing is Dictionary:
-			var p: Dictionary = pricing
+			var p: Dictionary = pricing as Dictionary
 			var prompt_per_tok: float = _safe_float(p.get("prompt", "0"))
 			var completion_per_tok: float = _safe_float(p.get("completion", "0"))
 			var total_per_tok: float = prompt_per_tok + completion_per_tok
@@ -318,7 +318,7 @@ func _parse_single_tool_call(raw: Dictionary) -> Dictionary:
 	var fn_raw: Variant = raw.get("function", null)
 	if not (fn_raw is Dictionary):
 		return {}
-	var fn_dict: Dictionary = fn_raw
+	var fn_dict: Dictionary = fn_raw as Dictionary
 	var name: String = str(fn_dict.get("name", "")).strip_edges()
 	if name.is_empty():
 		return {}
@@ -326,13 +326,13 @@ func _parse_single_tool_call(raw: Dictionary) -> Dictionary:
 	var args_raw: Variant = fn_dict.get("arguments", "")
 	var args: Dictionary = {}
 	if args_raw is Dictionary:
-		args = args_raw
+		args = args_raw as Dictionary
 	elif args_raw is String:
 		var s: String = (args_raw as String).strip_edges()
 		if not s.is_empty():
 			var parsed: Variant = JSON.parse_string(s)
 			if parsed is Dictionary:
-				args = parsed
+				args = parsed as Dictionary
 
 	return {
 		"id": call_id,
@@ -349,7 +349,7 @@ func _parse_usage(root: Dictionary) -> Dictionary:
 			"completion_tokens": 0,
 			"total_tokens": 0,
 		}
-	var u: Dictionary = usage_raw
+	var u: Dictionary = usage_raw as Dictionary
 	return {
 		"prompt_tokens": int(u.get("prompt_tokens", 0)),
 		"completion_tokens": int(u.get("completion_tokens", 0)),

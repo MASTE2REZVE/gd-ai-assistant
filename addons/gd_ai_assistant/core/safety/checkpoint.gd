@@ -35,10 +35,10 @@ static func snapshot_file(checkpoint_id: String, path: String) -> Dictionary:
 	var meta: Dictionary = _read_meta(checkpoint_id)
 	if meta.is_empty():
 		return _fail("Checkpoint not found: " + checkpoint_id)
-	var files: Array = meta.get("files", [])
+	var files: Array = meta.get("files", []) as Array
 	var normalized: String = _normalize(path)
 	for entry: Variant in files:
-		if entry is Dictionary and str(entry.get("path", "")) == normalized:
+		if entry is Dictionary and str((entry as Dictionary).get("path", "")) == normalized:
 			return _ok({"path": normalized, "already": true})
 	var snap_name: String = _snap_name(normalized)
 	var snap_path: String = _checkpoint_dir(checkpoint_id).path_join(snap_name)
@@ -66,13 +66,13 @@ static func restore(checkpoint_id: String) -> Dictionary:
 	var meta: Dictionary = _read_meta(checkpoint_id)
 	if meta.is_empty():
 		return _fail("Checkpoint not found: " + checkpoint_id)
-	var files: Array = meta.get("files", [])
+	var files: Array = meta.get("files", []) as Array
 	var restored: Array = []
 	var failed: Array = []
 	for entry_v: Variant in files:
 		if not (entry_v is Dictionary):
 			continue
-		var entry: Dictionary = entry_v
+		var entry: Dictionary = entry_v as Dictionary
 		var path: String = str(entry.get("path", ""))
 		if not path.begins_with(RES_PREFIX):
 			failed.append({"path": path, "reason": "not a res:// path"})
@@ -202,7 +202,7 @@ static func _read_meta(checkpoint_id: String) -> Dictionary:
 	f.close()
 	var parsed: Variant = JSON.parse_string(text)
 	if parsed is Dictionary:
-		return parsed
+		return parsed as Dictionary
 	return {}
 
 

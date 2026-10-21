@@ -3,6 +3,22 @@
 All notable changes to GD AI Assistant are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] — 2026-10-21
+
+Editor tools, codebase audit, and bug fixes.
+
+### Added
+- **4 Editor tools** — `run_scene`, `stop_scene`, `get_errors`, `open_in_editor`. The AI can now run the game, read runtime errors from the engine log, and open files in the editor UI. This unlocks the autonomous debug loop.
+
+### Changed
+- **Codebase Audit** — Entire plugin was audited and optimized for strict TAB indentation, explicit typing (`as Dictionary`), null guards, and Godot 4.7 API compliance.
+- Removed redundant schema-migration branch in `settings.gd`.
+- Fixed malformed error string formatting in `tool_project.gd` and `provider_registry.gd`.
+
+### Fixed
+- Added missing null guard for `_host` in `harness.gd`.
+- Fixed shadowing variable names in `harness.gd` streaming parameters.
+
 ## [0.2.0] — 2026-09-20
 
 Scene and script tools, plus a full checkpoint / undo system.

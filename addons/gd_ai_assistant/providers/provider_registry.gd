@@ -249,8 +249,8 @@ static func build_provider(
 
 	if is_native(id):
 		push_warning(
-			"GDAProviderRegistry: provider '%s' is native and not "
-			+ "implemented yet (Phase 3)." % id
+			"GDAProviderRegistry: provider '%s' is native and not implemented yet (Phase 3)."
+			% id
 		)
 		return null
 

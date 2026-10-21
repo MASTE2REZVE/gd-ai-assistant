@@ -197,9 +197,6 @@ func set_eco_mode(value: bool) -> void:
 
 func _migrate_if_needed() -> void:
 	var stored: int = int(_config.get_value(SECTION_GENERAL, "schema_version", 0))
-	if stored == 0:
-		_config.set_value(SECTION_GENERAL, "schema_version", SCHEMA_VERSION)
-		_dirty = true
-	elif stored < SCHEMA_VERSION:
+	if stored < SCHEMA_VERSION:
 		_config.set_value(SECTION_GENERAL, "schema_version", SCHEMA_VERSION)
 		_dirty = true

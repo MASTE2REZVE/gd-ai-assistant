@@ -412,7 +412,7 @@ func _apply_model_view() -> void:
 	for e_v: Variant in entries:
 		if not (e_v is Dictionary):
 			continue
-		var e: Dictionary = e_v
+		var e: Dictionary = e_v as Dictionary
 		_model_list_dd.add_item(str(e["label"]), i)
 		_model_list_dd.set_item_metadata(i, str(e["id"]))
 		i += 1

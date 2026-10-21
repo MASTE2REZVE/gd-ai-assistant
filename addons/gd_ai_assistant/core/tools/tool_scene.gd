@@ -19,11 +19,11 @@ static func _snapshot_if_checkpointed(context: Dictionary, path: String) -> Stri
 	return str(r.get("message", "Unknown checkpoint error"))
 
 
-static func _editor_from_context(context: Dictionary):
-	return context.get("editor_interface", null)
+static func _editor_from_context(context: Dictionary) -> EditorInterface:
+	return context.get("editor_interface", null) as EditorInterface
 
 
-static func _is_scene_open(scene_path: String, editor) -> bool:
+static func _is_scene_open(scene_path: String, editor: EditorInterface) -> bool:
 	if editor == null:
 		return false
 	var root: Node = editor.get_edited_scene_root()
@@ -318,7 +318,7 @@ class OpenScene extends GDAToolBase:
 		if not FileAccess.file_exists(path):
 			return fail("Scene not found: " + path)
 
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if ei == null:
 			return fail("EditorInterface unavailable.")
 
@@ -348,7 +348,7 @@ class SaveScene extends GDAToolBase:
 		return true
 
 	func execute(_args: Dictionary, context: Dictionary) -> Dictionary:
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if ei == null:
 			return fail("EditorInterface unavailable.")
 		var root: Node = ei.get_edited_scene_root()
@@ -464,7 +464,7 @@ class AddNode extends GDAToolBase:
 			return fail(str(guard["message"]))
 		if not FileAccess.file_exists(scene_path):
 			return fail("Scene not found: " + scene_path)
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if GDAToolScene._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first, or use the editor directly.")
 		if node_name.is_empty():
@@ -565,7 +565,7 @@ class RemoveNode extends GDAToolBase:
 			return fail(str(guard["message"]))
 		if not FileAccess.file_exists(scene_path):
 			return fail("Scene not found: " + scene_path)
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if GDAToolScene._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first.")
 		if node_path.is_empty() or node_path == ".":
@@ -656,7 +656,7 @@ class RenameNode extends GDAToolBase:
 			return fail(str(guard["message"]))
 		if not FileAccess.file_exists(scene_path):
 			return fail("Scene not found: " + scene_path)
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if GDAToolScene._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first.")
 		if new_name.is_empty():
@@ -738,7 +738,7 @@ class MoveNode extends GDAToolBase:
 			return fail(str(guard["message"]))
 		if not FileAccess.file_exists(scene_path):
 			return fail("Scene not found: " + scene_path)
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if GDAToolScene._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first.")
 		if node_path.is_empty() or node_path == ".":
@@ -838,7 +838,7 @@ class SetNodeProperty extends GDAToolBase:
 			return fail(str(guard["message"]))
 		if not FileAccess.file_exists(scene_path):
 			return fail("Scene not found: " + scene_path)
-		var ei = GDAToolScene._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScene._editor_from_context(context)
 		if GDAToolScene._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first.")
 

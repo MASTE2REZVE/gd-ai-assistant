@@ -73,7 +73,7 @@ static func build_entries(models: Array) -> Array:
 	for m: Variant in models:
 		if not (m is Dictionary):
 			continue
-		var md: Dictionary = m
+		var md: Dictionary = m as Dictionary
 		var mid: String = str(md.get("id", ""))
 		if mid.is_empty():
 			continue

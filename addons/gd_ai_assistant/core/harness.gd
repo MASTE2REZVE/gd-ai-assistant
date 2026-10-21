@@ -112,9 +112,9 @@ func undo_last() -> Dictionary:
 		GDACheckpoint.discard(ckpt_id)
 		_history.clear()
 		_inspected.clear()
-		var d: Dictionary = r.get("data", {})
-		var restored: Array = d.get("restored", [])
-		var failed: Array = d.get("failed", [])
+		var d: Dictionary = r.get("data", {}) as Dictionary
+		var restored: Array = d.get("restored", []) as Array
+		var failed: Array = d.get("failed", []) as Array
 		var msg: String = "Undid checkpoint \"%s\". %d files restored" % [label, restored.size()]
 		if not failed.is_empty():
 			msg += ", %d failed" % failed.size()
@@ -228,9 +228,9 @@ func _run_loop() -> Dictionary:
 			continue
 
 		retries_used = 0
-		var data: Dictionary = response.get("data", {})
+		var data: Dictionary = response.get("data", {}) as Dictionary
 		var content: String = str(data.get("content", ""))
-		var tool_calls: Array = data.get("tool_calls", [])
+		var tool_calls: Array = data.get("tool_calls", []) as Array
 
 		if tool_calls.is_empty():
 			_history.append({ "role": "assistant", "content": content })
@@ -299,7 +299,7 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		var stream_body: Dictionary = body.duplicate(true)
 		stream_body["stream"] = true
 		var stream_result: Dictionary = await _send_streaming(
-			url, headers, JSON.stringify(stream_body), provider, tools_canonical
+			url, headers, JSON.stringify(stream_body)
 		)
 		if bool(stream_result.get("ok", false)):
 			return stream_result
@@ -312,7 +312,7 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 		return result
 
 	var status: int = int(result.get("status", 0))
-	var body_bytes: PackedByteArray = result.get("body", PackedByteArray())
+	var body_bytes: PackedByteArray = result.get("body", PackedByteArray()) as PackedByteArray
 
 	if status < 200 or status >= 300:
 		var err_text: String = provider.parse_error_response(status, body_bytes)
@@ -334,7 +334,7 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 			if not bool(retry.get("ok", false)):
 				return retry
 			var retry_status: int = int(retry.get("status", 0))
-			var retry_body: PackedByteArray = retry.get("body", PackedByteArray())
+			var retry_body: PackedByteArray = retry.get("body", PackedByteArray()) as PackedByteArray
 			if retry_status < 200 or retry_status >= 300:
 				return _fail(provider.parse_error_response(retry_status, retry_body))
 			return provider.parse_chat_response(retry_body)
@@ -347,10 +347,10 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 func _send_streaming(
 	url: String,
 	headers: PackedStringArray,
-	body_json: String,
-	_provider: GDAProviderBase,
-	_tools_canonical: Array
+	body_json: String
 ) -> Dictionary:
+	if _host == null or not is_instance_valid(_host):
+		return _fail("Harness host is not available.")
 	var streamer: GDAHttpStreamer = GDAHttpStreamer.new()
 	_active_streamer = streamer
 
@@ -369,6 +369,8 @@ func _do_http_post(
 	headers: PackedStringArray,
 	body_json: String
 ) -> Dictionary:
+	if _host == null or not is_instance_valid(_host):
+		return { "ok": false, "message": "Harness host is not available." }
 	var http: HTTPRequest = HTTPRequest.new()
 	var limits: Dictionary = GDAPlatform.effective_limits(
 		GDAPlatform.resolve_mode(_settings.get_mode_override()),
@@ -412,7 +414,7 @@ func _execute_tool_call(tc: Dictionary) -> Dictionary:
 	var args: Variant = tc.get("arguments", {})
 	if not (args is Dictionary):
 		args = {}
-	var args_dict: Dictionary = args
+	var args_dict: Dictionary = args as Dictionary
 
 	if not _registry.has_tool(tool_name):
 		return _fail("Unknown tool: " + tool_name)
@@ -510,7 +512,9 @@ func _build_context() -> Dictionary:
 func _wait(seconds: float) -> void:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree != null:
-		await tree.create_timer(seconds).timeout
+		var timer: SceneTreeTimer = tree.create_timer(seconds)
+		if timer != null:
+			await timer.timeout
 
 
 func _fail(message: String) -> Dictionary:

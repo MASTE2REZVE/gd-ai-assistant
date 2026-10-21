@@ -19,11 +19,11 @@ static func _snapshot_if_checkpointed(context: Dictionary, path: String) -> Stri
 	return str(r.get("message", "Unknown checkpoint error"))
 
 
-static func _editor_from_context(context: Dictionary):
-	return context.get("editor_interface", null)
+static func _editor_from_context(context: Dictionary) -> EditorInterface:
+	return context.get("editor_interface", null) as EditorInterface
 
 
-static func _is_scene_open(scene_path: String, editor) -> bool:
+static func _is_scene_open(scene_path: String, editor: EditorInterface) -> bool:
 	if editor == null:
 		return false
 	var root: Node = editor.get_edited_scene_root()
@@ -331,7 +331,7 @@ class AttachScript extends GDAToolBase:
 		if not script_path.to_lower().ends_with(".gd"):
 			return fail("script_path must end in .gd.")
 
-		var ei = GDAToolScript._editor_from_context(context)
+		var ei: EditorInterface = GDAToolScript._editor_from_context(context)
 		if GDAToolScript._is_scene_open(scene_path, ei):
 			return fail("Scene is open in the editor. Close it first.")
 

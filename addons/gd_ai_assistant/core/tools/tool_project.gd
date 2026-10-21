@@ -334,7 +334,7 @@ class PatchFile extends GDAToolBase:
 			return fail("Patch produced no change.")
 		var byte_size: int = updated.to_utf8_buffer().size()
 		if byte_size > MAX_WRITE_BYTES:
-			return fail("Result too large." % byte_size)
+			return fail("Result too large (%d bytes)." % byte_size)
 
 		var ckpt_err: String = GDAToolProject._snapshot_if_checkpointed(context, path)
 		if not ckpt_err.is_empty():
