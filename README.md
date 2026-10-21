@@ -1,147 +1,96 @@
 # GD AI Assistant
 
-An AI coding assistant that lives inside the Godot 4 editor. Chat with an LLM and let it read, write, create, and modify files in your project — safely.
+An AI coding assistant that lives inside the Godot 4 editor. Chat with an LLM and let it read, write, create, modify, and **debug** your project safely and autonomously.
 
-**Android-first.** Built and tested on an Android tablet. Works on Windows, macOS, and Linux too.
-
----
-
-## Why another AI plugin?
-
-Most Godot AI plugins assume you're on a desktop. GD AI Assistant is built for people who code on a tablet — bottom-panel UI sized for touch, wrapped layout, careful memory limits.
-
-It also has the widest provider support of any Godot AI plugin: **11 providers** out of the box, plus a Custom endpoint for anything else.
-
-And every file edit is protected by a **seven-layer safety chain** — validate, backup, modify, verify, rollback on failure. Nothing is ever silently corrupted.
+**Android-first.** Built and tested on an Android tablet. Works on Windows, macOS, and Linux.
 
 ---
 
-## Features
+## 🌟 Why GD AI Assistant?
 
-- **11 AI providers** — OpenRouter, ModelScope, OpenAI, Anthropic, Google Gemini, Groq, DeepSeek, Mistral, xAI Grok, Ollama (local), LM Studio (local), plus Custom.
-- **27 tools** — read/write/patch files, search, list, create scenes, add/remove/rename/move nodes, set node properties, create and attach scripts, inspect script symbols, run/stop scenes, read runtime errors, and open files in the editor.
-- **4 agent modes** — ASK (chat only), PLAN (read-only), AGENT (asks before each edit), AUTO (edits automatically with rollback).
-- **Fast mode** — skip exploration; write directly without reading the project first.
-- **Uncapped mode** — raise the agent step limit from 20 (mobile) / 40 (desktop) to 200 for complex multi-step tasks.
-- **Undo** — every turn creates a checkpoint. One click reverts every file the AI touched.
-- **Safe file edits** — every write backs up the original, verifies the result, and rolls back if anything is broken.
-- **Read-before-edit** — the AI cannot edit a file it hasn't read or written this turn.
-- **Model filter + sort** — find free models, sort by cost, or rank by coding-quality heuristics.
-- **Local models supported** — run Ollama or LM Studio with zero cloud dependency.
-- **Token efficiency** — request budget trimming, per-turn history windowing, size caps on tool results.
-- **Android-first UI** — 48px touch targets, wrap-friendly layout.
+Most Godot AI plugins just generate code snippets. GD AI Assistant is an **Autonomous Agent**. 
+- It doesn't just write code; it **runs the scene, reads the crash logs, and fixes its own bugs**.
+- It doesn't just edit files; it **builds scene trees, wires signals, and manages resources**.
+- Every edit is protected by a **7-layer safety chain** (backups, verification, and one-click undo).
+- Includes a **Dual Theme Engine** (Light, Dark, Cyber) and **Performance Modes** (Full animations on PC, Lightweight on Android).
 
 ---
 
-## Installation
+## 🚀 Installation
 
 1. Download the latest release from the [Releases page](https://github.com/MASTE2REZVE/gd-ai-assistant/releases).
 2. Extract `gd_ai_assistant/` into your Godot project's `addons/` folder.
 3. Open Godot: **Project → Project Settings → Plugins**.
-4. Enable **GD AI Assistant**.
-5. A bottom panel appears. Pick a provider, paste your API key, start chatting.
+4. Enable **GD AI Assistant**. A bottom panel will appear.
 
 **Requires Godot 4.4 or newer.** Tested on Godot 4.7.2 stable.
 
 ---
 
-## Getting an API key
+## 🔑 Getting an API Key
 
-| Provider | Free tier? | Where to get a key |
+You need an API key from one of our 11 supported providers. We recommend **OpenRouter** (supports hundreds of models) or **Ollama** (free, local). 
+Keys are stored locally in `user://gd_ai_assistant.cfg` and are **never** committed to your project.
+
+| Provider | Free Tier? | Where to get a key |
 |---|---|---|
-| OpenRouter | Yes (many free models) | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| ModelScope | Yes | [modelscope.ai](https://www.modelscope.ai) → Access Tokens |
-| Groq | Yes | [console.groq.com](https://console.groq.com) |
+| OpenRouter | Yes | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | Google Gemini | Yes | [aistudio.google.com](https://aistudio.google.com) |
-| DeepSeek | Paid | [platform.deepseek.com](https://platform.deepseek.com) |
-| Mistral | Free tier | [console.mistral.ai](https://console.mistral.ai) |
-| xAI Grok | Paid | [console.x.ai](https://console.x.ai) |
-| OpenAI | Paid | [platform.openai.com](https://platform.openai.com/api-keys) |
-| Anthropic | Paid | [console.anthropic.com](https://console.anthropic.com) |
-| Ollama | Free (local) | [ollama.com](https://ollama.com) — no key needed |
-| LM Studio | Free (local) | [lmstudio.ai](https://lmstudio.ai) — no key needed |
-
-Keys are stored on your own machine at `user://gd_ai_assistant.cfg`. **They are never committed to your project and never sent anywhere except your chosen provider.**
+| Groq | Yes | [console.groq.com](https://console.groq.com) |
+| ModelScope | Yes | [modelscope.ai](https://www.modelscope.ai) |
+| Ollama | Free (Local) | [ollama.com](https://ollama.com) |
+| LM Studio | Free (Local) | [lmstudio.ai](https://lmstudio.ai) |
 
 ---
 
-## Agent modes explained
+## 🧠 The 4 Agent Modes
 
-- **ASK** — the AI answers questions but cannot touch your files.
-- **PLAN** — the AI can read files and describe a plan, but cannot edit.
-- **AGENT** — the AI can edit files, but asks for your approval before each change. **(Default)**
-- **AUTO** — the AI edits files automatically. Every change is still backed up and verified.
-
-You can switch modes from the dropdown at the top of the panel at any time.
+- **ASK**: The AI answers questions but cannot touch your files.
+- **PLAN**: The AI can read files and describe a plan, but cannot edit.
+- **AGENT**: The AI edits files, but asks for your approval before each change. (Default)
+- **AUTO**: The AI edits files automatically, runs the scene, and debugs its own code.
 
 ---
 
-## The safety chain
+## 🩺 The Autonomous Debug Loop
 
-Every file write goes through seven layers:
+With the new **Editor Tools**, the AI can debug itself. Just tell it:
+> *"Create a player script, run the game, and fix any errors."*
 
-1. **Path guard** — `res://` only, no `..`, protected files blocked (`project.godot`, `.godot/`, the plugin's own code).
-2. **Read-before-edit** — the AI must have read or written the file this turn.
-3. **Backup** — the original is copied to `user://gd_ai_assistant_backups/`.
-4. **Verify** — the written file is parsed and linted.
-5. **Rollback** — if verification fails, the backup is restored.
-6. **Approval gate** — in AGENT mode, you approve before the write happens.
-7. **Checkpoints** — every successful write becomes a restorable point. Click ⟲ Undo to revert the whole turn.
-
-If something goes wrong, the plugin restores the previous file and tells you exactly what failed.
+The AI will:
+1. Write the code.
+2. Run the game via `run_scene`.
+3. Read the crash log via `get_errors`.
+4. Patch the bug.
+5. Repeat until the game runs smoothly, then stop.
 
 ---
 
-## Available tools
+## 🛠️ The 31 Available Tools
 
 **Project (6):** `get_project_info`, `list_files`, `search_files`, `read_file`, `write_file`, `patch_file`
-
 **Scene (12):** `list_scenes`, `get_scene_tree`, `create_scene`, `open_scene`, `save_scene`, `get_node`, `add_node`, `remove_node`, `rename_node`, `move_node`, `set_node_property`, `get_node_property`
-
 **Script (5):** `create_script`, `read_script`, `validate_script`, `get_script_symbols`, `attach_script`
-
 **Editor (4):** `run_scene`, `stop_scene`, `get_errors`, `open_in_editor`
-
-`.tscn` files are never edited as raw text — always via Godot's `PackedScene` and `ResourceSaver`.
-
----
-
-## Screenshots
-
-![GD AI Assistant panel](screenshots/panel_v02.png)
-
-![Scene created from a chat prompt](screenshots/scene_creation.png)
+**Signal (4):** `connect_signal`, `disconnect_signal`, `add_to_group`, `remove_from_group`
 
 ---
 
-## Roadmap
+## 🛡️ The 7-Layer Safety Chain
 
-- **v0.1.0** — core plugin, 11 providers, 6 project tools.
-- **v0.2.0** — 12 scene tools, 5 script tools, checkpoints/undo, fast mode, uncapped mode, live status.
-- **v0.3.0** *(current)* — editor tools, codebase audit, bug fixes.
-- **v0.4.0** — signal tools, diff preview, pixel art generation via image APIs.
-- **v1.0.0** — @-mentions, web search, streaming, full documentation.
-
----
-
-## Contributing
-
-Issues and pull requests are welcome. If you find a bug, please include:
-- Your Godot version
-- Your OS (Android, Windows, macOS, Linux)
-- The provider you were using
-- The exact error message from the Output panel
+1. **Path Guard**: Blocks edits to `project.godot` and the `.godot/` folder.
+2. **Read-Before-Edit**: The AI must read a file before it can change it.
+3. **Backups**: Every write saves a backup to `user://backups/`.
+4. **Verification**: Every file is parsed and linted after saving.
+5. **Rollback**: If verification fails, the backup is automatically restored.
+6. **Approval Gate**: In AGENT mode, you approve changes before they happen.
+7. **Checkpoints**: Click the **⟲ Undo** button to revert an entire AI turn.
 
 ---
 
-## Support
+## ❤️ Support
 
 GD AI Assistant is free and open source. If it saves you time, you can send crypto — see [DONATE.md](DONATE.md).
 
-Donations don't affect what gets built or in what order. They're just a thank-you.
-
----
-
-## License
-
+## 📄 License
 MIT. See [LICENSE](LICENSE).

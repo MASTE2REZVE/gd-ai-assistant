@@ -23,7 +23,10 @@ var _mode_dd: OptionButton
 var _settings_btn: Button
 var _filter_dd: OptionButton
 var _sort_dd: OptionButton
+var _theme_dd: OptionButton
+var _perf_dd: OptionButton
 var _model_filter_bar: Control
+var _top_bar: Container
 var _settings_bar: Container
 var _api_key_input: LineEdit
 var _save_key_btn: Button
@@ -44,6 +47,8 @@ var _reject_btn: Button
 
 var _all_models: Array = []
 var _last_assistant_reply: String = ""
+var _logo: Control = null
+var _animations_enabled: bool = false
 
 
 func set_editor_interface(iface: EditorInterface) -> void:
@@ -54,6 +59,7 @@ func _ready() -> void:
 	if not _cache_nodes():
 		return
 	_build_services()
+	_setup_dynamic_ui()
 	_wire_harness_signals()
 	_wire_ui()
 	_populate_provider_dropdown()
@@ -87,6 +93,7 @@ func _cache_nodes() -> bool:
 	_model_filter_bar = get_node_or_null("ModelFilterBar") as Control
 	_filter_dd = get_node_or_null("ModelFilterBar/FilterDropdown") as OptionButton
 	_sort_dd = get_node_or_null("ModelFilterBar/SortDropdown") as OptionButton
+	_top_bar = get_node_or_null("TopBar") as Container
 	_settings_bar = get_node_or_null("SettingsBar") as Container
 	_api_key_input = get_node_or_null("SettingsBar/APIKeyInput") as LineEdit
 	_save_key_btn = get_node_or_null("SettingsBar/SaveKeyBtn") as Button
@@ -116,6 +123,7 @@ func _cache_nodes() -> bool:
 	if _model_filter_bar == null: missing.append("ModelFilterBar")
 	if _filter_dd == null: missing.append("FilterDropdown")
 	if _sort_dd == null: missing.append("SortDropdown")
+	if _top_bar == null: missing.append("TopBar")
 	if _settings_bar == null: missing.append("SettingsBar")
 	if _api_key_input == null: missing.append("APIKeyInput")
 	if _save_key_btn == null: missing.append("SaveKeyBtn")
@@ -188,6 +196,44 @@ func _build_services() -> void:
 	_harness.configure(_settings, _registry, self, _editor_interface, _provider, prompt)
 	if _settings.is_dirty():
 		_settings.save_settings()
+
+
+func _setup_dynamic_ui() -> void:
+	_theme_dd = OptionButton.new()
+	_theme_dd.name = "ThemeDropdown"
+	_theme_dd.tooltip_text = "UI theme"
+	_theme_dd.custom_minimum_size = Vector2(120, 48)
+	_theme_dd.add_item("Light", 0)
+	_theme_dd.add_item("Dark", 1)
+	_theme_dd.add_item("Cyber", 2)
+	_theme_dd.set_item_metadata(0, "light")
+	_theme_dd.set_item_metadata(1, "dark")
+	_theme_dd.set_item_metadata(2, "cyber")
+	_settings_bar.add_child(_theme_dd)
+
+	_perf_dd = OptionButton.new()
+	_perf_dd.name = "PerformanceDropdown"
+	_perf_dd.tooltip_text = "UI performance"
+	_perf_dd.custom_minimum_size = Vector2(120, 48)
+	_perf_dd.add_item("Light", 0)
+	_perf_dd.add_item("Full", 1)
+	_perf_dd.set_item_metadata(0, "light")
+	_perf_dd.set_item_metadata(1, "full")
+	_settings_bar.add_child(_perf_dd)
+
+	_logo = GDALogo.new()
+	_logo.name = "GDALogo"
+	_logo.custom_minimum_size = Vector2(48, 48)
+	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_logo.tooltip_text = "GD AI Assistant"
+	_top_bar.add_child(_logo)
+
+	_select_by_metadata(_theme_dd, _settings.get_ui_theme())
+	_select_by_metadata(_perf_dd, _settings.get_ui_performance())
+	_theme_dd.item_selected.connect(_on_theme_selected)
+	_perf_dd.item_selected.connect(_on_perf_selected)
+	_apply_theme()
+	_apply_animations()
 
 
 func _rebuild_provider() -> void:
@@ -319,6 +365,22 @@ func _on_settings_toggled() -> void:
 	_settings_bar.visible = not _settings_bar.visible
 
 
+func _on_theme_selected(idx: int) -> void:
+	var theme_name: String = str(_theme_dd.get_item_metadata(idx))
+	_settings.set_ui_theme(theme_name)
+	_settings.save_settings()
+	_apply_theme()
+	_apply_animations()
+
+
+func _on_perf_selected(idx: int) -> void:
+	var perf_mode: String = str(_perf_dd.get_item_metadata(idx))
+	_settings.set_ui_performance(perf_mode)
+	_settings.save_settings()
+	_apply_animations()
+	_apply_theme()
+
+
 func _on_fast_toggled(pressed: bool) -> void:
 	_settings.set_fast_mode(pressed)
 	_settings.save_settings()
@@ -337,6 +399,123 @@ func _on_desktop_features_toggled(pressed: bool) -> void:
 		_append_system("Desktop features ENABLED.")
 	else:
 		_append_system("Desktop features disabled (mobile defaults).")
+
+
+func _apply_theme() -> void:
+	if _settings == null:
+		return
+	var theme_name: String = _settings.get_ui_theme().to_lower()
+	var bg_color: Color
+	var input_bg: Color
+	var button_bg: Color
+	var border_color: Color
+	var accent_color: Color
+	var text_color: Color
+
+	match theme_name:
+		"light":
+			bg_color = Color("#ffffff")
+			input_bg = Color("#f3f4f6")
+			button_bg = Color("#e5e7eb")
+			border_color = Color("#9ca3af")
+			accent_color = Color("#2563eb")
+			text_color = Color("#111111")
+		"dark":
+			bg_color = Color("#1e1e1e")
+			input_bg = Color("#2b2b2b")
+			button_bg = Color("#383838")
+			border_color = Color("#6b7280")
+			accent_color = Color("#9ca3af")
+			text_color = Color("#ffffff")
+		_:
+			bg_color = Color("#0a0f1e")
+			input_bg = Color("#101a33")
+			button_bg = Color("#1a1030")
+			border_color = Color("#00e5ff")
+			accent_color = Color("#ff00d4")
+			text_color = Color("#e6f7ff")
+
+	var panel_style: StyleBoxFlat = _make_style(bg_color, border_color)
+	var input_style: StyleBoxFlat = _make_style(input_bg, border_color)
+	var button_border: Color = accent_color if theme_name == "cyber" else border_color
+	var button_style: StyleBoxFlat = _make_style(button_bg, button_border)
+	var hover_style: StyleBoxFlat = _make_style(button_bg.lightened(0.08), accent_color)
+	var pressed_style: StyleBoxFlat = _make_style(button_bg.darkened(0.15), accent_color)
+	var focus_style: StyleBoxFlat = _make_style(Color(0.0, 0.0, 0.0, 0.0), accent_color)
+	var disabled_style: StyleBoxFlat = _make_style(button_bg.darkened(0.1), border_color)
+	var placeholder_color: Color = Color(text_color.r, text_color.g, text_color.b, 0.45)
+	var disabled_text: Color = Color(text_color.r, text_color.g, text_color.b, 0.4)
+	var selection_color: Color = Color(accent_color.r, accent_color.g, accent_color.b, 0.3)
+
+	_chat.add_theme_stylebox_override("panel", panel_style)
+	_chat.add_theme_stylebox_override("normal", panel_style)
+	_chat.add_theme_color_override("default_color", text_color)
+	_chat.add_theme_color_override("font_selected_color", accent_color)
+	_chat.add_theme_color_override("selection_color", selection_color)
+
+	for input_node: Node in find_children("*", "LineEdit", true, false):
+		var input: LineEdit = input_node as LineEdit
+		if input == null:
+			continue
+		input.add_theme_stylebox_override("panel", input_style)
+		input.add_theme_stylebox_override("normal", input_style)
+		input.add_theme_stylebox_override("focus", focus_style)
+		input.add_theme_color_override("font_color", text_color)
+		input.add_theme_color_override("font_placeholder_color", placeholder_color)
+		input.add_theme_color_override("caret_color", accent_color)
+		input.add_theme_color_override("selection_color", selection_color)
+
+	for button_node: Node in find_children("*", "Button", true, false):
+		var button: Button = button_node as Button
+		if button == null:
+			continue
+		button.add_theme_stylebox_override("panel", button_style)
+		button.add_theme_stylebox_override("normal", button_style)
+		button.add_theme_stylebox_override("hover", hover_style)
+		button.add_theme_stylebox_override("pressed", pressed_style)
+		button.add_theme_stylebox_override("focus", focus_style)
+		button.add_theme_stylebox_override("disabled", disabled_style)
+		button.add_theme_color_override("font_color", text_color)
+		button.add_theme_color_override("font_hover_color", accent_color)
+		button.add_theme_color_override("font_pressed_color", accent_color)
+		button.add_theme_color_override("font_focus_color", text_color)
+		button.add_theme_color_override("font_disabled_color", disabled_text)
+
+	for label_node: Node in find_children("*", "Label", true, false):
+		var label: Label = label_node as Label
+		if label == null:
+			continue
+		label.add_theme_color_override("font_color", text_color)
+
+
+func _make_style(bg: Color, border: Color) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = bg
+	style.border_color = border
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 8.0
+	style.content_margin_top = 4.0
+	style.content_margin_right = 8.0
+	style.content_margin_bottom = 4.0
+	return style
+
+
+func _apply_animations() -> void:
+	if _settings == null:
+		return
+	_animations_enabled = _settings.get_ui_performance().to_lower() == "full"
+	if _logo != null:
+		_logo.visible = _animations_enabled
+		_logo.set_process(_animations_enabled)
+	if not _animations_enabled and _chat != null:
+		_chat.modulate.a = 1.0
 
 
 func _on_api_key_submitted(_text: String) -> void:
@@ -597,6 +776,10 @@ func _append_user(text: String) -> void:
 
 func _append_assistant(text: String) -> void:
 	_append_line("\n[AI] " + text + "\n")
+	if _animations_enabled and _chat != null:
+		_chat.modulate.a = 0.0
+		var fade: Tween = create_tween()
+		fade.tween_property(_chat, "modulate:a", 1.0, 0.25)
 
 
 func _append_tool(text: String) -> void:
@@ -653,3 +836,33 @@ func _fetch_recent_errors() -> String:
 	if out.size() > 30:
 		out = out.slice(out.size() - 30)
 	return "\n".join(out)
+
+
+class GDALogo extends Control:
+	var _rotation: float = 0.0
+	var _pulse: float = 0.0
+
+
+	func _process(delta: float) -> void:
+		_rotation += delta * 0.6
+		_pulse += delta * 2.0
+		queue_redraw()
+
+
+	func _draw() -> void:
+		var center: Vector2 = size * 0.5
+		var radius: float = minf(size.x, size.y) * 0.28
+		var glow: float = 0.5 + 0.5 * sin(_pulse)
+		var cyan: Color = Color("#00e5ff")
+		var magenta: Color = Color("#ff00d4")
+		var points: Array[Vector2] = []
+		for point_index: int in range(3):
+			var angle: float = _rotation + TAU * float(point_index) / 3.0
+			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_circle(center, radius * 1.6, Color(cyan.r, cyan.g, cyan.b, 0.08 * glow))
+		for line_index: int in range(3):
+			var p1: Vector2 = points[line_index]
+			var p2: Vector2 = points[(line_index + 1) % 3]
+			draw_line(p1, p2, Color(cyan.r, cyan.g, cyan.b, 0.55 + 0.35 * glow), 2.0)
+			draw_circle(p1, 6.0 + 2.0 * glow, cyan)
+			draw_circle(p1, 2.5, magenta)

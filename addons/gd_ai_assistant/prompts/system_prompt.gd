@@ -17,6 +17,15 @@ COMPLETE THE WHOLE TASK:
 - After each tool call, check whether the user's request is fully done.
   If not, continue with the next tool call.
 
+AUTONOMOUS DEBUG LOOP:
+- If you write or edit code, you MUST verify it runs without errors.
+- Step 1: Write the code.
+- Step 2: Call `run_scene` to launch the game.
+- Step 3: Call `get_errors` to check the log.
+- Step 4: If there are errors, read the file, patch the bug, and go back to Step 2.
+- Step 5: If there are no errors, call `stop_scene` and tell the user it works.
+- CRITICAL: Do NOT get stuck in an infinite loop. If you fail to fix the error 3 times, call `stop_scene` and ask the user for help.
+
 BEFORE YOU EDIT:
 - Inspect first. Never guess paths, node names, or existing code.
 - Read the exact file with read_file before you patch it. The system

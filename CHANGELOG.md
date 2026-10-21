@@ -3,6 +3,16 @@
 All notable changes to GD AI Assistant are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0] — 2026-10-21
+The Ultimate Release. Autonomous Debug Loop, Adaptive UI, and complete Documentation.
+
+### Added
+- **Adaptive UI Engine**: Dual themes (Light, Dark, Cyber) with dynamic animations.
+- **Performance Modes**: Lightweight mode for Android, Full Power mode for Desktop.
+- **4 Editor tools** — Enables the Autonomous Debug Loop.
+- **4 Signal/Group tools** — Connect nodes and manage groups.
+- **Self-Healing System Prompt** — The AI runs, reads errors, fixes, and runs again.
+
 ## [0.3.0] — 2026-10-21
 
 Editor tools, codebase audit, and bug fixes.

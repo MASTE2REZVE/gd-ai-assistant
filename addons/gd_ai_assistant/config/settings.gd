@@ -68,6 +68,25 @@ func set_mode_override(value: String) -> void:
 	_dirty = true
 
 
+func get_ui_theme() -> String:
+	return str(_config.get_value(SECTION_GENERAL, "ui_theme", "cyber"))
+
+
+func set_ui_theme(value: String) -> void:
+	_config.set_value(SECTION_GENERAL, "ui_theme", value)
+	_dirty = true
+
+
+func get_ui_performance() -> String:
+	var default_value: String = "light" if GDAPlatform.is_mobile_os() else "full"
+	return str(_config.get_value(SECTION_GENERAL, "ui_performance", default_value))
+
+
+func set_ui_performance(value: String) -> void:
+	_config.set_value(SECTION_GENERAL, "ui_performance", value)
+	_dirty = true
+
+
 func get_desktop_features_enabled() -> bool:
 	var default_value: bool = GDAPlatform.is_desktop_os()
 	return bool(_config.get_value(SECTION_GENERAL, "desktop_features", default_value))
