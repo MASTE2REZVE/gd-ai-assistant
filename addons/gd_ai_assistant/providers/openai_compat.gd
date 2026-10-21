@@ -150,7 +150,6 @@ func _build_request_internal(
 		"messages": messages,
 		"temperature": temperature,
 		"stream": false,
-		"max_tokens": DEFAULT_MAX_TOKENS,
 	}
 	if not tools.is_empty() and _supports_tools_flag:
 		body["tools"] = canonical_tools_to_openai(tools)

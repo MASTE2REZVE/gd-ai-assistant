@@ -97,7 +97,7 @@ static func limits_for(mode: Mode) -> Dictionary:
 			"api_injector": false,
 			"gotchas": false,
 			"web_search": false,
-			"http_timeout_sec": 30.0,
+			"http_timeout_sec": 600.0,
 			"chat_repaint_ms": 100,
 		}
 	return {
@@ -109,7 +109,7 @@ static func limits_for(mode: Mode) -> Dictionary:
 		"api_injector": true,
 		"gotchas": true,
 		"web_search": true,
-		"http_timeout_sec": 60.0,
+		"http_timeout_sec": 600.0,
 		"chat_repaint_ms": 0,
 	}
 

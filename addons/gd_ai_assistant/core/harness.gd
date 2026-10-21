@@ -19,7 +19,7 @@ const RETRY_DELAY_SEC: float = 1.2
 const DEFAULT_MAX_STEPS: int = 40
 const MOBILE_MAX_STEPS: int = 20
 const UNCAPPED_MAX_STEPS: int = 200
-const DEBUG_LOGGING: bool = false
+const DEBUG_LOGGING: bool = true
 
 
 var _settings: GDASettings = null
@@ -400,6 +400,7 @@ func _do_http_post(
 	var result_code: int = int(response[0])
 	var status: int = int(response[1])
 	var body_bytes: PackedByteArray = response[3]
+	if DEBUG_LOGGING: print("[GDA] HTTP Status: ", status, " Body: ", body_bytes.get_string_from_utf8().substr(0, 500))
 
 	if result_code != HTTPRequest.RESULT_SUCCESS:
 		if result_code == HTTPRequest.RESULT_REQUEST_FAILED:
