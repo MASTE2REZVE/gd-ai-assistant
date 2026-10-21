@@ -821,6 +821,7 @@ func _create_bubble(text: String, type: String) -> void:
 	var bubble: PanelContainer = PanelContainer.new()
 	var margin: MarginContainer = MarginContainer.new()
 	var rtl: RichTextLabel = RichTextLabel.new()
+	rtl.name = "BubbleText"
 	rtl.bbcode_enabled = true
 	rtl.fit_content = true
 	rtl.scroll_active = false
@@ -933,7 +934,7 @@ func _get_chat_text() -> String:
 		if bubble == null:
 			continue
 		var rtl: RichTextLabel = bubble.find_child(
-			"*", "RichTextLabel", true, false
+			"BubbleText", true, false
 		) as RichTextLabel
 		if rtl == null:
 			continue
