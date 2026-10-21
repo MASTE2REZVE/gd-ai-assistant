@@ -464,7 +464,11 @@ func _gate_tool(tool: GDAToolBase, args: Dictionary) -> Dictionary:
 
 	if tool.is_mutating():
 		var target: String = _extract_target_path(args)
-		if not target.is_empty() and FileAccess.file_exists(target):
+		if (
+			not tool.get_name().begins_with("create_")
+			and not target.is_empty()
+			and FileAccess.file_exists(target)
+		):
 			if not _inspected.has(target):
 				return _fail(
 					"Read-before-edit: read '%s' before modifying it." % target

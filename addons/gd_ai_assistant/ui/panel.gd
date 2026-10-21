@@ -34,6 +34,7 @@ var _desktop_features_check: CheckBox
 var _chat: RichTextLabel
 var _chat_scroll: ScrollContainer
 var _chat_vbox: VBoxContainer
+var _input_bar: Container
 var _message_input: LineEdit
 var _send_btn: Button
 var _stop_btn: Button
@@ -104,6 +105,7 @@ func _cache_nodes() -> bool:
 	_save_key_btn = get_node_or_null("SettingsBar/SaveKeyBtn") as Button
 	_desktop_features_check = get_node_or_null("SettingsBar/DesktopFeaturesCheck") as CheckBox
 	_chat = get_node_or_null("ChatHistory") as RichTextLabel
+	_input_bar = get_node_or_null("InputBar") as Container
 	_message_input = get_node_or_null("InputBar/MessageInput") as LineEdit
 	_send_btn = get_node_or_null("InputBar/SendBtn") as Button
 	_stop_btn = get_node_or_null("InputBar/StopBtn") as Button
@@ -134,6 +136,7 @@ func _cache_nodes() -> bool:
 	if _save_key_btn == null: missing.append("SaveKeyBtn")
 	if _desktop_features_check == null: missing.append("DesktopFeaturesCheck")
 	if _chat == null: missing.append("ChatHistory")
+	if _input_bar == null: missing.append("InputBar")
 	if _message_input == null: missing.append("MessageInput")
 	if _send_btn == null: missing.append("SendBtn")
 	if _stop_btn == null: missing.append("StopBtn")
@@ -213,9 +216,7 @@ func _setup_dynamic_ui() -> void:
 	_chat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(_chat_scroll)
-	var input_bar: Control = get_node_or_null("InputBar") as Control
-	if input_bar != null:
-		move_child(_chat_scroll, input_bar.get_index())
+	move_child(_chat_scroll, _input_bar.get_index())
 
 	_chat_vbox = VBoxContainer.new()
 	_chat_vbox.name = "ChatVBox"
@@ -223,6 +224,13 @@ func _setup_dynamic_ui() -> void:
 	_chat_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_chat_vbox.add_theme_constant_override("separation", 6)
 	_chat_scroll.add_child(_chat_vbox)
+
+	var clear_chat_btn: Button = Button.new()
+	clear_chat_btn.name = "ClearChatBtn"
+	clear_chat_btn.text = "Clear"
+	clear_chat_btn.custom_minimum_size = Vector2(80, 48)
+	clear_chat_btn.pressed.connect(_on_clear_chat_pressed)
+	_input_bar.add_child(clear_chat_btn)
 
 	_theme_dd = OptionButton.new()
 	_theme_dd.name = "ThemeDropdown"
@@ -689,6 +697,20 @@ func _on_copy_all_pressed() -> void:
 		return
 	DisplayServer.clipboard_set(text_to_copy)
 	_set_status("Copied full chat.")
+
+
+func _on_clear_chat_pressed() -> void:
+	if _chat_vbox != null:
+		for child: Node in _chat_vbox.get_children():
+			child.queue_free()
+	if _chat != null:
+		_chat.clear()
+	_harness.clear_history()
+	_last_assistant_reply = ""
+	_last_bubble = null
+	_last_bubble_type = ""
+	_streaming_assistant = false
+	_append_system("Chat cleared.")
 
 
 func _on_approve_pressed() -> void:
