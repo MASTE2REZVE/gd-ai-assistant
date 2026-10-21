@@ -32,6 +32,8 @@ var _api_key_input: LineEdit
 var _save_key_btn: Button
 var _desktop_features_check: CheckBox
 var _chat: RichTextLabel
+var _chat_scroll: ScrollContainer
+var _chat_vbox: VBoxContainer
 var _message_input: LineEdit
 var _send_btn: Button
 var _stop_btn: Button
@@ -49,6 +51,9 @@ var _all_models: Array = []
 var _last_assistant_reply: String = ""
 var _logo: Control = null
 var _animations_enabled: bool = false
+var _last_bubble: RichTextLabel = null
+var _last_bubble_type: String = ""
+var _streaming_assistant: bool = false
 
 
 func set_editor_interface(iface: EditorInterface) -> void:
@@ -174,6 +179,7 @@ func _wire_ui() -> void:
 func _wire_harness_signals() -> void:
 	_harness.turn_started.connect(_on_turn_started)
 	_harness.turn_finished.connect(_on_turn_finished)
+	_harness.assistant_token.connect(_on_assistant_token)
 	_harness.assistant_message.connect(_on_assistant_message)
 	_harness.error_occurred.connect(_on_error_occurred)
 	_harness.tool_call_started.connect(_on_tool_call_started)
@@ -199,6 +205,25 @@ func _build_services() -> void:
 
 
 func _setup_dynamic_ui() -> void:
+	_chat.visible = false
+
+	_chat_scroll = ScrollContainer.new()
+	_chat_scroll.name = "ChatScroll"
+	_chat_scroll.custom_minimum_size = Vector2(0, 120)
+	_chat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_chat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_chat_scroll)
+	var input_bar: Control = get_node_or_null("InputBar") as Control
+	if input_bar != null:
+		move_child(_chat_scroll, input_bar.get_index())
+
+	_chat_vbox = VBoxContainer.new()
+	_chat_vbox.name = "ChatVBox"
+	_chat_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_chat_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_chat_vbox.add_theme_constant_override("separation", 6)
+	_chat_scroll.add_child(_chat_vbox)
+
 	_theme_dd = OptionButton.new()
 	_theme_dd.name = "ThemeDropdown"
 	_theme_dd.tooltip_text = "UI theme"
@@ -611,7 +636,7 @@ func _on_send_pressed() -> void:
 
 	if text == "@clear":
 		_harness.clear_history()
-		_chat.clear()
+		_clear_chat_bubbles()
 		_last_assistant_reply = ""
 		_append_system("History cleared.")
 		return
@@ -658,7 +683,7 @@ func _on_copy_latest_pressed() -> void:
 
 
 func _on_copy_all_pressed() -> void:
-	var text_to_copy: String = _chat.get_parsed_text()
+	var text_to_copy: String = _get_chat_text()
 	if text_to_copy.strip_edges().is_empty():
 		_set_status("Chat is empty.")
 		return
@@ -678,11 +703,15 @@ func _on_reject_pressed() -> void:
 
 func _on_turn_started() -> void:
 	_stop_btn.disabled = false
+	_streaming_assistant = false
+	_last_bubble = null
+	_last_bubble_type = ""
 
 
 func _on_turn_finished(ok: bool, message: String) -> void:
 	_send_btn.disabled = false
 	_stop_btn.disabled = true
+	_streaming_assistant = false
 	_approval_bar.visible = false
 	if ok:
 		_set_status("Ready")
@@ -692,9 +721,25 @@ func _on_turn_finished(ok: bool, message: String) -> void:
 	_refresh_undo_button()
 
 
+func _on_assistant_token(token: String) -> void:
+	_streaming_assistant = true
+	if _last_bubble == null or _last_bubble_type != "ai":
+		_create_bubble("", "ai")
+	if _last_bubble == null:
+		return
+	_last_bubble.append_text(token)
+	_scroll_chat_to_bottom()
+
+
 func _on_assistant_message(text: String) -> void:
 	_last_assistant_reply = text
-	_append_assistant(text)
+	if _streaming_assistant and _last_bubble != null and _last_bubble_type == "ai":
+		_last_bubble.text = text
+		_streaming_assistant = false
+		_scroll_chat_to_bottom()
+	else:
+		_append_assistant(text)
+		_streaming_assistant = false
 
 
 func _on_error_occurred(message: String) -> void:
@@ -770,31 +815,152 @@ func _refresh_token_estimate() -> void:
 	_token_label.text = GDATokenCounter.format_estimate(total)
 
 
+func _create_bubble(text: String, type: String) -> void:
+	if _chat_vbox == null:
+		return
+	var bubble: PanelContainer = PanelContainer.new()
+	var margin: MarginContainer = MarginContainer.new()
+	var rtl: RichTextLabel = RichTextLabel.new()
+	rtl.bbcode_enabled = true
+	rtl.fit_content = true
+	rtl.scroll_active = false
+	rtl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rtl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rtl.text = text
+
+	var theme_name: String = "cyber"
+	if _settings != null:
+		theme_name = _settings.get_ui_theme().to_lower()
+	var bubble_bg: Color = Color(0.0, 0.0, 0.0, 0.0)
+	var bubble_border: Color = Color(0.0, 0.0, 0.0, 0.0)
+	var bubble_text: Color = Color("#111111")
+	var border_width: int = 0
+	match type:
+		"user":
+			match theme_name:
+				"light":
+					bubble_bg = Color("#dbeafe")
+					bubble_border = Color("#2563eb")
+					bubble_text = Color("#111111")
+				"dark":
+					bubble_bg = Color("#334155")
+					bubble_border = Color("#6b7280")
+					bubble_text = Color("#ffffff")
+				_:
+					bubble_bg = Color("#1a1030")
+					bubble_border = Color("#ff00d4")
+					bubble_text = Color("#e6f7ff")
+			border_width = 1
+		"ai":
+			match theme_name:
+				"light":
+					bubble_bg = Color("#f3f4f6")
+					bubble_border = Color("#9ca3af")
+					bubble_text = Color("#111111")
+				"dark":
+					bubble_bg = Color("#2b2b2b")
+					bubble_border = Color("#6b7280")
+					bubble_text = Color("#ffffff")
+				_:
+					bubble_bg = Color("#101a33")
+					bubble_border = Color("#00e5ff")
+					bubble_text = Color("#e6f7ff")
+			border_width = 1
+		_:
+			match theme_name:
+				"light":
+					bubble_text = Color("#374151")
+				"dark":
+					bubble_text = Color("#d1d5db")
+				_:
+					bubble_text = Color("#9fb3c8")
+
+	var bubble_style: StyleBoxFlat = StyleBoxFlat.new()
+	bubble_style.bg_color = bubble_bg
+	bubble_style.border_color = bubble_border
+	bubble_style.border_width_left = border_width
+	bubble_style.border_width_top = border_width
+	bubble_style.border_width_right = border_width
+	bubble_style.border_width_bottom = border_width
+	bubble_style.corner_radius_top_left = 14
+	bubble_style.corner_radius_top_right = 14
+	bubble_style.corner_radius_bottom_left = 14
+	bubble_style.corner_radius_bottom_right = 14
+	bubble.add_theme_stylebox_override("panel", bubble_style)
+
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	rtl.add_theme_color_override("default_color", bubble_text)
+
+	bubble.add_child(margin)
+	margin.add_child(rtl)
+	_chat_vbox.add_child(bubble)
+	_last_bubble = rtl
+	_last_bubble_type = type
+	await _scroll_chat_to_bottom()
+
+
+func _scroll_chat_to_bottom() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	if _chat_scroll == null:
+		return
+	var v_scroll: VScrollBar = _chat_scroll.get_v_scroll_bar()
+	if v_scroll != null:
+		v_scroll.value = v_scroll.max_value
+
+
+func _clear_chat_bubbles() -> void:
+	if _chat_vbox == null:
+		return
+	for child: Node in _chat_vbox.get_children():
+		_chat_vbox.remove_child(child)
+		child.queue_free()
+	_last_bubble = null
+	_last_bubble_type = ""
+	_streaming_assistant = false
+
+
+func _get_chat_text() -> String:
+	if _chat_vbox == null:
+		return ""
+	var parts: Array[String] = []
+	for bubble_node: Node in _chat_vbox.get_children():
+		var bubble: PanelContainer = bubble_node as PanelContainer
+		if bubble == null:
+			continue
+		var rtl: RichTextLabel = bubble.find_child(
+			"*", "RichTextLabel", true, false
+		) as RichTextLabel
+		if rtl == null:
+			continue
+		var line: String = rtl.get_parsed_text()
+		if not line.is_empty():
+			parts.append(line)
+	return "\n".join(parts)
+
+
 func _append_user(text: String) -> void:
-	_append_line("\n[You] " + text + "\n")
+	_create_bubble(text, "user")
 
 
 func _append_assistant(text: String) -> void:
-	_append_line("\n[AI] " + text + "\n")
-	if _animations_enabled and _chat != null:
-		_chat.modulate.a = 0.0
+	_create_bubble(text, "ai")
+	if _animations_enabled and _last_bubble != null:
+		_last_bubble.modulate.a = 0.0
 		var fade: Tween = create_tween()
-		fade.tween_property(_chat, "modulate:a", 1.0, 0.25)
+		fade.tween_property(_last_bubble, "modulate:a", 1.0, 0.25)
 
 
 func _append_tool(text: String) -> void:
-	_append_line("[tool] " + text + "\n")
+	_create_bubble(text, "tool")
 
 
 func _append_system(text: String) -> void:
-	_append_line("[system] " + text + "\n")
-
-
-func _append_line(text: String) -> void:
-	_chat.append_text(text)
-	var bar: VScrollBar = _chat.get_v_scroll_bar()
-	if bar != null:
-		bar.value = bar.max_value
+	_create_bubble(text, "system")
 
 
 func _set_status(text: String) -> void:
