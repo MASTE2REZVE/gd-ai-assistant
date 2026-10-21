@@ -4,3 +4,13 @@ user://
 screenshots/*.import
 testgd
 gdtoolkit/
+*_test.gd
+*_test.gd.uid
+*_test.tscn
+test_*.gd
+test_*.gd.uid
+test_*.tscn
+player.gd
+player.gd.uid
+player.tscn
+demo_scene.tscn

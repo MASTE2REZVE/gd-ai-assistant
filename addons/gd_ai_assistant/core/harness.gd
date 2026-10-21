@@ -229,8 +229,10 @@ func _run_loop() -> Dictionary:
 
 		retries_used = 0
 		var data: Dictionary = response.get("data", {}) as Dictionary
-		var content: String = str(data.get("content", ""))
+		var content_raw: Variant = data.get("content", "")
+		var content: String = "" if content_raw == null else str(content_raw)
 		var tool_calls: Array = data.get("tool_calls", []) as Array
+		_ensure_tool_call_ids(tool_calls)
 
 		if tool_calls.is_empty():
 			_history.append({ "role": "assistant", "content": content })
@@ -249,12 +251,14 @@ func _run_loop() -> Dictionary:
 				return _fail("Cancelled.")
 			if not (tc is Dictionary):
 				continue
-			var tool_name_pre: String = str((tc as Dictionary).get("name", "tool"))
+			var tc_dict: Dictionary = tc as Dictionary
+			var call_id: String = str(tc_dict.get("id", ""))
+			var tool_name_pre: String = str(tc_dict.get("name", "tool"))
 			status_changed.emit("Running tool: %s..." % tool_name_pre)
-			var result: Dictionary = await _execute_tool_call(tc as Dictionary)
+			var result: Dictionary = await _execute_tool_call(tc_dict)
 			_history.append({
 				"role": "tool",
-				"tool_call_id": str((tc as Dictionary).get("id", "")),
+				"tool_call_id": call_id,
 				"content": JSON.stringify({
 					"ok": bool(result.get("ok", false)),
 					"message": str(result.get("message", "")),
@@ -263,6 +267,16 @@ func _run_loop() -> Dictionary:
 			})
 
 	return _fail("Cancelled.")
+
+
+func _ensure_tool_call_ids(tool_calls: Array) -> void:
+	for tc: Variant in tool_calls:
+		if not (tc is Dictionary):
+			continue
+		var tc_dict: Dictionary = tc as Dictionary
+		var call_id: String = str(tc_dict.get("id", ""))
+		if call_id.is_empty():
+			tc_dict["id"] = "call_" + str(randi())
 
 
 func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
@@ -316,6 +330,7 @@ func _send_request(messages: Array, tools_canonical: Array) -> Dictionary:
 
 	if status < 200 or status >= 300:
 		var err_text: String = provider.parse_error_response(status, body_bytes)
+		print("HTTP ERROR BODY: ", body_bytes.get_string_from_utf8())
 		if DEBUG_LOGGING:
 			print("[GDA]   HTTP ", status, ": ", body_bytes.get_string_from_utf8().substr(0, 300))
 

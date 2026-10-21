@@ -147,15 +147,75 @@ func _build_request_internal(
 ) -> Dictionary:
 	var body: Dictionary = {
 		"model": model,
-		"messages": messages,
 		"temperature": temperature,
 		"stream": false,
 		"max_tokens": 4096,
 	}
+	body["messages"] = _format_messages_for_openai(messages)
 	if not tools.is_empty() and _supports_tools_flag:
 		body["tools"] = canonical_tools_to_openai(tools)
 		body["tool_choice"] = "auto"
 	return body
+
+
+func _format_messages_for_openai(messages: Array) -> Array:
+	var formatted: Array = []
+	for msg_v: Variant in messages:
+		if not (msg_v is Dictionary):
+			continue
+		var msg: Dictionary = msg_v as Dictionary
+		var role: String = str(msg.get("role", ""))
+		var out_msg: Dictionary = msg.duplicate(true)
+		if role == "assistant" and msg.has("tool_calls"):
+			var content_raw: Variant = msg.get("content", "")
+			out_msg["content"] = "" if content_raw == null else str(content_raw)
+			var raw_calls: Variant = msg.get("tool_calls", [])
+			var formatted_calls: Array = []
+			if raw_calls is Array:
+				for tc_v: Variant in (raw_calls as Array):
+					if not (tc_v is Dictionary):
+						continue
+					var tc: Dictionary = tc_v as Dictionary
+					var call_id_raw: Variant = tc.get("id", "")
+					var call_id: String = "" if call_id_raw == null else str(call_id_raw)
+					if call_id.is_empty():
+						call_id = "call_" + str(randi())
+					var tool_name: String = ""
+					var args_raw: Variant = null
+					var fn_raw: Variant = tc.get("function", null)
+					if fn_raw is Dictionary:
+						var fn: Dictionary = fn_raw as Dictionary
+						tool_name = str(fn.get("name", "")).strip_edges()
+						args_raw = fn.get("arguments", {})
+					else:
+						tool_name = str(tc.get("name", "")).strip_edges()
+						args_raw = tc.get("arguments", {})
+					var args_text: String = "{}"
+					if args_raw is String:
+						args_text = (args_raw as String).strip_edges()
+						if args_text.is_empty():
+							args_text = "{}"
+					elif args_raw != null:
+						args_text = JSON.stringify(args_raw)
+					formatted_calls.append({
+						"id": call_id,
+						"type": "function",
+						"function": {
+							"name": tool_name,
+							"arguments": args_text,
+						},
+					})
+			if formatted_calls.is_empty():
+				out_msg.erase("tool_calls")
+			else:
+				out_msg["tool_calls"] = formatted_calls
+		elif role == "tool":
+			var tool_call_id_raw: Variant = msg.get("tool_call_id", "")
+			out_msg["tool_call_id"] = "" if tool_call_id_raw == null else str(tool_call_id_raw)
+			var tool_content_raw: Variant = msg.get("content", "")
+			out_msg["content"] = "" if tool_content_raw == null else str(tool_content_raw)
+		formatted.append(out_msg)
+	return formatted
 
 
 func parse_chat_response(body: PackedByteArray) -> Dictionary:
